@@ -133,6 +133,54 @@ body {
     box-shadow: 0 0 0 3px rgba(190, 240, 251, 0.2);
 }
 
+.input-with-icon i:first-child {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+}
+
+/* Toggle Password Button */
+.toggle-password-btn {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 5px;
+    transition: var(--transition);
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.toggle-password-btn:hover {
+    color: var(--primary-color);
+    background-color: rgba(190, 240, 251, 0.1);
+}
+
+.toggle-password-btn:focus {
+    outline: none;
+}
+
+.toggle-password-btn i {
+    font-size: 16px;
+}
+
+/* Animasi Shake untuk password salah */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
 .form-options {
     display: flex;
     justify-content: space-between;
