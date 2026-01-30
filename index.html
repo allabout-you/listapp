@@ -47,7 +47,7 @@
             
             <div class="love-quote">
                 <i class="fas fa-quote-left"></i>
-                <p>"setiap rencana pasti punya waktu, ayoo kita wujudkan satu per satu"</p>
+                <p>"setiap rencana pasti punya waktu, ayoo kita wujud-in itu satu per satu"</p>
                 <i class="fas fa-quote-right"></i>
             </div>
         </div>
@@ -76,14 +76,14 @@
                 if (password === 'sayangkamu') {
                     localStorage.setItem('dateListLoggedIn', 'true');
                     localStorage.setItem('dateListRemember', remember.toString());
-                    showToast('Selamat datang di list-list kita!');
+                    showToast('Welcome to our listt!!');
                     
                     // Redirect ke home setelah 1 detik
                     setTimeout(() => {
                         window.location.href = 'home.html';
                     }, 1000);
                 } else {
-                    showToast('Kata sandi salah... coba kamu ingat-ingat lagi sayang');
+                    showToast('Kata sandi salah... coba kamu ingat-ingat lagi sayangg');
                     passwordInput.value = '';
                     passwordInput.focus();
                     
