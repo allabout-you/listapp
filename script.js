@@ -1,10 +1,12 @@
 // Data aplikasi
 let state = {
     lists: [],
-    currentListId: null
+    currentListId: null,
+    isLoggedIn: false
 };
 
 // DOM Elements
+const loginPage = document.getElementById('login-page');
 const homePage = document.getElementById('home-page');
 const listPage = document.getElementById('list-page');
 const listsContainer = document.getElementById('lists');
@@ -22,51 +24,145 @@ const toast = document.getElementById('toast');
 const totalItemsEl = document.getElementById('total-items');
 const completedItemsEl = document.getElementById('completed-items');
 const progressPercentEl = document.getElementById('progress-percent');
+const passwordInput = document.getElementById('password-input');
+const loginBtn = document.getElementById('login-btn');
+const logoutBtn = document.getElementById('logout-btn');
 
 // Ikon untuk berbagai jenis list
-const listIcons = ["💖", "🎬", "🍽️", "✈️", "🎯", "📝", "🎁", "📸", "🎵", "🌅", "🍿", "☕"];
+const listIcons = ["💙", "💗", "💑", "🌌", "🌠", "🎨", "🌸", "💎", "🌊", "🦋", "🌺", "🎆"];
+
+// Kata kunci login
+const PASSWORD = "sayangkamu";
 
 // Inisialisasi aplikasi
 function init() {
     loadData();
-    renderHomePage();
+    checkLoginStatus();
     setupEventListeners();
+}
+
+// Cek status login
+function checkLoginStatus() {
+    const savedLogin = localStorage.getItem('dateListLoggedIn');
+    if (savedLogin === 'true') {
+        state.isLoggedIn = true;
+        showHomePage();
+    } else {
+        showLoginPage();
+    }
 }
 
 // Muat data dari localStorage
 function loadData() {
     const savedData = localStorage.getItem('dateListApp');
     if (savedData) {
-        state = JSON.parse(savedData);
+        const parsedData = JSON.parse(savedData);
+        state.lists = parsedData.lists || [];
+        state.currentListId = parsedData.currentListId || null;
     }
 }
 
 // Simpan data ke localStorage
 function saveData() {
-    localStorage.setItem('dateListApp', JSON.stringify(state));
+    const dataToSave = {
+        lists: state.lists,
+        currentListId: state.currentListId
+    };
+    localStorage.setItem('dateListApp', JSON.stringify(dataToSave));
 }
 
 // Setup event listeners
 function setupEventListeners() {
+    // Login events
+    loginBtn.addEventListener('click', handleLogin);
+    passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+    });
+    
+    // Logout event
+    logoutBtn.addEventListener('click', handleLogout);
+    
+    // List events
     addListBtn.addEventListener('click', addNewList);
     newListInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') addNewList();
     });
     
+    // Item events
     addItemBtn.addEventListener('click', addNewItem);
     newItemInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') addNewItem();
     });
     
+    // Navigation events
     backBtn.addEventListener('click', goBackToHome);
     deleteListBtn.addEventListener('click', deleteCurrentList);
+}
+
+// Handle login
+function handleLogin() {
+    const password = passwordInput.value.trim();
+    
+    if (password === PASSWORD) {
+        state.isLoggedIn = true;
+        localStorage.setItem('dateListLoggedIn', 'true');
+        showHomePage();
+        passwordInput.value = '';
+        showToast('Selamat datang di ruang spesial kita! 💕');
+    } else {
+        showToast('Kata kunci salah... coba ingat-ingat lagi sayang 😘');
+        passwordInput.value = '';
+        passwordInput.focus();
+        
+        // Animasi shake untuk input
+        passwordInput.style.animation = 'none';
+        setTimeout(() => {
+            passwordInput.style.animation = 'shake 0.5s ease';
+        }, 10);
+        
+        // CSS untuk animasi shake
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-10px); }
+                75% { transform: translateX(10px); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+// Handle logout
+function handleLogout() {
+    if (confirm('Yakin mau keluar dari ruang spesial kita?')) {
+        state.isLoggedIn = false;
+        localStorage.removeItem('dateListLoggedIn');
+        showLoginPage();
+        showToast('Sampai jumpa lagi sayang! 😘');
+    }
+}
+
+// Tampilkan halaman login
+function showLoginPage() {
+    loginPage.classList.add('active');
+    homePage.classList.remove('active');
+    listPage.classList.remove('active');
+}
+
+// Tampilkan halaman utama
+function showHomePage() {
+    loginPage.classList.remove('active');
+    homePage.classList.add('active');
+    listPage.classList.remove('active');
+    renderHomePage();
 }
 
 // Tambah list baru
 function addNewList() {
     const listName = newListInput.value.trim();
     if (!listName) {
-        showToast('Nama list tidak boleh kosong!');
+        showToast('Nama list tidak boleh kosong sayang! 💕');
         return;
     }
     
@@ -84,7 +180,8 @@ function addNewList() {
     renderHomePage();
     newListInput.value = '';
     
-    showToast(`List "${listName}" berhasil dibuat!`);
+    showToast(`Yeay! List "${listName}" berhasil dibuat! 🎉`);
+    newListInput.focus();
 }
 
 // Tambah item baru ke list saat ini
@@ -93,7 +190,7 @@ function addNewItem() {
     
     const itemText = newItemInput.value.trim();
     if (!itemText) {
-        showToast('Item tidak boleh kosong!');
+        showToast('Item tidak boleh kosong sayang! 💕');
         return;
     }
     
@@ -114,7 +211,8 @@ function addNewItem() {
     renderListPage();
     newItemInput.value = '';
     
-    showToast('Item berhasil ditambahkan!');
+    showToast('Item berhasil ditambahkan! 💖');
+    newItemInput.focus();
 }
 
 // Render halaman utama
@@ -141,17 +239,13 @@ function renderHomePage() {
                     <div class="list-title">${list.name}</div>
                     <div class="list-count">${completedCount} dari ${totalCount} item selesai</div>
                 </div>
-                <i class="fas fa-chevron-right" style="color: var(--gray);"></i>
+                <i class="fas fa-chevron-right" style="color: var(--soft-blue);"></i>
             `;
             
             listElement.addEventListener('click', () => openList(list.id));
             listsContainer.appendChild(listElement);
         });
     }
-    
-    // Tampilkan halaman utama
-    homePage.classList.add('active');
-    listPage.classList.remove('active');
 }
 
 // Buka halaman list
@@ -160,6 +254,7 @@ function openList(listId) {
     renderListPage();
     
     // Tampilkan halaman list
+    loginPage.classList.remove('active');
     homePage.classList.remove('active');
     listPage.classList.add('active');
 }
@@ -205,7 +300,7 @@ function renderListPage() {
                 itemText.classList.toggle('completed');
                 saveData();
                 updateStats();
-                showToast(item.completed ? 'Yeay! Item selesai!' : 'Item belum selesai');
+                showToast(item.completed ? 'Yeay! Item selesai! 🎉' : 'Item belum selesai');
             });
             
             // Event listener untuk hapus item
@@ -222,7 +317,7 @@ function renderListPage() {
                     itemText.classList.toggle('completed');
                     saveData();
                     updateStats();
-                    showToast(item.completed ? 'Yeay! Item selesai!' : 'Item belum selesai');
+                    showToast(item.completed ? 'Yeay! Item selesai! 🎉' : 'Item belum selesai');
                 }
             });
             
@@ -249,17 +344,18 @@ function deleteCurrentList() {
     if (!state.currentListId) return;
     
     if (confirm('Apakah kamu yakin ingin menghapus list ini? Semua item di dalamnya juga akan terhapus.')) {
+        const listName = state.lists.find(list => list.id === state.currentListId)?.name;
         state.lists = state.lists.filter(list => list.id !== state.currentListId);
         saveData();
         goBackToHome();
-        showToast('List berhasil dihapus!');
+        showToast(`List "${listName}" berhasil dihapus!`);
     }
 }
 
 // Kembali ke halaman utama
 function goBackToHome() {
     state.currentListId = null;
-    renderHomePage();
+    showHomePage();
 }
 
 // Update statistik di halaman list
@@ -289,43 +385,8 @@ function showToast(message) {
 // Inisialisasi aplikasi saat halaman dimuat
 document.addEventListener('DOMContentLoaded', init);
 
-// Tambahkan beberapa contoh data jika kosong
+// Tidak ada contoh data awal - biarkan kosong
 if (!state.lists || state.lists.length === 0) {
-    state.lists = [
-        {
-            id: '1',
-            name: 'Date List 🎬',
-            icon: '🎬',
-            createdAt: new Date().toISOString(),
-            items: [
-                { id: '1', text: 'Nonton film romantis di bioskop 🍿', completed: false },
-                { id: '2', text: 'Makan malam di rooftop restaurant 🍽️', completed: true },
-                { id: '3', text: 'Jalan-jalan di pantai saat sunset 🌅', completed: false },
-                { id: '4', text: 'Masak makan malam bersama 👩‍🍳', completed: false }
-            ]
-        },
-        {
-            id: '2',
-            name: 'Wishlist 💝',
-            icon: '💝',
-            createdAt: new Date().toISOString(),
-            items: [
-                { id: '1', text: 'Staycation di hotel bagus 🏨', completed: false },
-                { id: '2', text: 'Naik hot air balloon 🎈', completed: false },
-                { id: '3', text: 'Liburan ke Bali ✈️', completed: true }
-            ]
-        },
-        {
-            id: '3',
-            name: 'Couple Goals 👫',
-            icon: '👫',
-            createdAt: new Date().toISOString(),
-            items: [
-                { id: '1', text: 'Foto prewedding 📸', completed: false },
-                { id: '2', text: 'Belajar dansa bersama 💃', completed: false },
-                { id: '3', text: 'Bikin scrapbook kenangan kita 📔', completed: true }
-            ]
-        }
-    ];
+    state.lists = [];
     saveData();
 }
