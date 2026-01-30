@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bersamaku... • Date List</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💖</text></svg>">
+</head>
+<body>
+    <!-- Halaman Utama -->
+    <div id="home-page" class="page active">
+        <header>
+            <h1><i class="fas fa-heart"></i> bersama<span class="highlight">ku</span>...</h1>
+            <p class="subtitle">Simpan semua momen spesial kita dalam list romantis</p>
+        </header>
+
+        <main>
+            <div class="add-section">
+                <div class="input-group">
+                    <input type="text" id="new-list-input" placeholder="Buat list baru, misal: Date List 🎬">
+                    <button id="add-list-btn"><i class="fas fa-plus"></i> Tambah</button>
+                </div>
+                <p class="hint">Klik list untuk melihat dan mengisi item di dalamnya</p>
+            </div>
+
+            <div class="lists-container">
+                <h2><i class="fas fa-list"></i> Daftar List Kita</h2>
+                <div id="lists"></div>
+                <div id="empty-state" class="empty-state">
+                    <i class="fas fa-heart-broken"></i>
+                    <p>Belum ada list yang dibuat. Yuk buat list pertama kita!</p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Dibuat dengan <i class="fas fa-heart" style="color: #ff4757;"></i> untuk kita berdua</p>
+        </footer>
+    </div>
+
+    <!-- Halaman Detail List -->
+    <div id="list-page" class="page">
+        <header class="list-header">
+            <button id="back-btn" class="back-btn"><i class="fas fa-arrow-left"></i></button>
+            <h1 id="list-title"></h1>
+            <button id="delete-list-btn" class="delete-btn" title="Hapus list"><i class="fas fa-trash-alt"></i></button>
+        </header>
+
+        <main>
+            <div class="add-section">
+                <div class="input-group">
+                    <input type="text" id="new-item-input" placeholder="Tambah item baru, misal: Nonton film romantis 🍿">
+                    <button id="add-item-btn"><i class="fas fa-plus"></i> Tambah</button>
+                </div>
+            </div>
+
+            <div class="items-container">
+                <h2><i class="fas fa-check-circle"></i> Item Checklist</h2>
+                <div id="items"></div>
+                <div id="items-empty-state" class="empty-state">
+                    <i class="fas fa-clipboard-list"></i>
+                    <p>Belum ada item di list ini. Yuk tambah item pertama!</p>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-number" id="total-items">0</span>
+                    <span class="stat-label">Total Item</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="completed-items">0</span>
+                    <span class="stat-label">Selesai</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="progress-percent">0%</span>
+                    <span class="stat-label">Progress</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notifikasi -->
+    <div id="toast" class="toast"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
