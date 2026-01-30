@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>bersamaku • Date List</title>
+    <title>Login • bersamaku...</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💑</text></svg>">
 </head>
-<body>
-    <!-- Halaman Login -->
-    <div id="login-page" class="page active">
+<body class="login-page">
+    <div class="login-container">
         <div class="login-card">
             <div class="login-header">
                 <div class="logo">
@@ -42,169 +41,14 @@
                 </button>
                 
                 <div class="login-footer">
-                    <p>Kata sandi lupa? <span class="highlight">Ingat perasaan kita</span></p>
+                    <p>Kata sandi: <span class="hint-text">sayangkamu</span></p>
                 </div>
             </div>
             
             <div class="love-quote">
                 <i class="fas fa-quote-left"></i>
                 <p>"Setiap momen bersamamu adalah cerita terindah dalam hidupku"</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Halaman Utama -->
-    <div id="home-page" class="page">
-        <div class="container">
-            <header class="main-header">
-                <div class="header-left">
-                    <div class="logo-small">
-                        <i class="fas fa-heart"></i>
-                        <span>bersamaku</span>
-                    </div>
-                    <p class="welcome-text">Halo Sayang! 👋</p>
-                </div>
-                <div class="header-right">
-                    <button id="logout-btn" class="btn-logout">
-                        <i class="fas fa-sign-out-alt"></i> Keluar
-                    </button>
-                </div>
-            </header>
-
-            <div class="main-content">
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-plus-circle"></i> Buat List Baru</h2>
-                        <p class="card-subtitle">Mulai petualangan baru kita</p>
-                    </div>
-                    
-                    <div class="card-body">
-                        <div class="input-group">
-                            <input type="text" id="new-list-input" placeholder="Contoh: Wishlist Liburan ✈️">
-                            <button id="add-list-btn" class="btn-secondary">
-                                <i class="fas fa-plus"></i> Tambah List
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card lists-card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-list-alt"></i> Daftar List Kita</h2>
-                        <div class="filter-section">
-                            <span class="filter-label">Filter:</span>
-                            <button class="filter-btn active">Semua</button>
-                            <button class="filter-btn">Aktif</button>
-                            <button class="filter-btn">Selesai</button>
-                        </div>
-                    </div>
-                    
-                    <div class="card-body">
-                        <div id="lists" class="lists-grid"></div>
-                        
-                        <div id="empty-state" class="empty-state">
-                            <div class="empty-icon">
-                                <i class="fas fa-heart"></i>
-                                <i class="fas fa-plus"></i>
-                            </div>
-                            <h3>Belum ada list nih!</h3>
-                            <p>Ayo mulai dengan membuat list pertama kita di atas</p>
-                            <p class="empty-hint">Coba buat list seperti "Date Ideas" atau "Goals Bersama"</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Halaman Detail List -->
-    <div id="list-page" class="page">
-        <div class="container">
-            <header class="list-header">
-                <button id="back-btn" class="btn-back">
-                    <i class="fas fa-arrow-left"></i> Kembali
-                </button>
-                <div class="list-title-container">
-                    <h1 id="list-title">Loading...</h1>
-                    <div class="list-stats">
-                        <span class="stat-badge"><i class="fas fa-tasks"></i> <span id="total-items">0</span> item</span>
-                        <span class="stat-badge"><i class="fas fa-check-circle"></i> <span id="completed-items">0</span> selesai</span>
-                    </div>
-                </div>
-                <button id="delete-list-btn" class="btn-delete" title="Hapus list">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </header>
-
-            <div class="main-content">
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-plus-circle"></i> Tambah Item Baru</h2>
-                    </div>
-                    
-                    <div class="card-body">
-                        <div class="input-group">
-                            <input type="text" id="new-item-input" placeholder="Contoh: Nonton film romantis berdua 🎬">
-                            <button id="add-item-btn" class="btn-secondary">
-                                <i class="fas fa-plus"></i> Tambah Item
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card items-card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-check-square"></i> Checklist Items</h2>
-                        <div class="progress-container">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="progress-fill"></div>
-                            </div>
-                            <span class="progress-text" id="progress-percent">0%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="card-body">
-                        <div id="items" class="items-list"></div>
-                        
-                        <div id="items-empty-state" class="empty-state">
-                            <i class="fas fa-clipboard-list"></i>
-                            <h3>List ini masih kosong!</h3>
-                            <p>Tambahkan item pertama untuk memulai</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stats-container">
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-calendar-check"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3>Tanggal Dibuat</h3>
-                            <p id="created-date">-</p>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-bullseye"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3>Target</h3>
-                            <p id="completion-rate">0% Complete</p>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-history"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3>Terakhir Diupdate</h3>
-                            <p id="updated-date">-</p>
-                        </div>
-                    </div>
-                </div>
+                <i class="fas fa-quote-right"></i>
             </div>
         </div>
     </div>
@@ -213,5 +57,61 @@
     <div id="toast" class="toast"></div>
 
     <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cek apakah sudah login
+            if (localStorage.getItem('dateListLoggedIn') === 'true') {
+                window.location.href = 'home.html';
+            }
+            
+            // Setup event listener untuk login
+            const loginBtn = document.getElementById('login-btn');
+            const passwordInput = document.getElementById('password-input');
+            const rememberMe = document.getElementById('remember-me');
+            
+            loginBtn.addEventListener('click', function() {
+                const password = passwordInput.value.trim();
+                const remember = rememberMe.checked;
+                
+                if (password === 'sayangkamu') {
+                    localStorage.setItem('dateListLoggedIn', 'true');
+                    localStorage.setItem('dateListRemember', remember.toString());
+                    showToast('Selamat datang di ruang spesial kita! 💕');
+                    
+                    // Redirect ke home setelah 1 detik
+                    setTimeout(() => {
+                        window.location.href = 'home.html';
+                    }, 1000);
+                } else {
+                    showToast('Kata sandi salah... coba ingat-ingat lagi sayang 😘');
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                    
+                    // Animasi shake
+                    passwordInput.style.animation = 'none';
+                    setTimeout(() => {
+                        passwordInput.style.animation = 'shake 0.5s ease';
+                    }, 10);
+                }
+            });
+            
+            passwordInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    loginBtn.click();
+                }
+            });
+            
+            // Fungsi toast
+            function showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+        });
+    </script>
 </body>
 </html>
