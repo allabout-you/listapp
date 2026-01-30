@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login • bersamaku...</title>
+    <title>with you</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -14,10 +14,10 @@
         <div class="login-card">
             <div class="login-header">
                 <div class="logo">
+                    <h1>with you</h1>
                     <i class="fas fa-heart"></i>
-                    <h1>bersamaku</h1>
                 </div>
-                <p class="tagline">Ruang spesial hanya untuk kita berdua</p>
+                <p class="tagline">our list - our time</p>
             </div>
             
             <div class="login-form">
@@ -41,13 +41,13 @@
                 </button>
                 
                 <div class="login-footer">
-                    <p>Kata sandi: <span class="hint-text">sayangkamu</span></p>
+                    <p>Kata sandi: <span class="hint-text">coba tanya pacar kamu</span></p>
                 </div>
             </div>
             
             <div class="love-quote">
                 <i class="fas fa-quote-left"></i>
-                <p>"Setiap momen bersamamu adalah cerita terindah dalam hidupku"</p>
+                <p>"setiap rencana punya waktu, dan dari sini kita wujudkan satu per satu"</p>
                 <i class="fas fa-quote-right"></i>
             </div>
         </div>
@@ -76,14 +76,14 @@
                 if (password === 'sayangkamu') {
                     localStorage.setItem('dateListLoggedIn', 'true');
                     localStorage.setItem('dateListRemember', remember.toString());
-                    showToast('Selamat datang di ruang spesial kita! 💕');
+                    showToast('Selamat datang di list-list kita!');
                     
                     // Redirect ke home setelah 1 detik
                     setTimeout(() => {
                         window.location.href = 'home.html';
                     }, 1000);
                 } else {
-                    showToast('Kata sandi salah... coba ingat-ingat lagi sayang 😘');
+                    showToast('Kata sandi salah... coba kamu ingat-ingat lagi sayang');
                     passwordInput.value = '';
                     passwordInput.focus();
                     
