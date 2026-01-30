@@ -3,48 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Date List</title>
+    <title>bersamaku... • Date List</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💖</text></svg>">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💙</text></svg>">
 </head>
 <body>
+    <!-- Halaman Login -->
+    <div id="login-page" class="page active">
+        <div class="login-container">
+            <div class="login-header">
+                <i class="fas fa-lock"></i>
+                <h1>Private Space Kita</h1>
+                <p class="login-subtitle">Masukkan kata kunci khusus kita untuk masuk</p>
+            </div>
+            
+            <div class="login-form">
+                <div class="input-group">
+                    <input type="password" id="password-input" placeholder="Kata kunci rahasia kita...">
+                    <button id="login-btn"><i class="fas fa-heart"></i> Masuk</button>
+                </div>
+                <p class="hint">Hint: Kata kuncinya adalah perasaan kita 💕</p>
+                
+                <div class="love-message">
+                    <i class="fas fa-quote-left"></i>
+                    <p>Setiap momen bersamamu adalah cerita terindah yang ingin kusimpan selamanya</p>
+                    <i class="fas fa-quote-right"></i>
+                </div>
+            </div>
+            
+            <div class="login-footer">
+                <p>Hanya untuk kita berdua • <span style="color: var(--soft-pink);">💙💗</span></p>
+            </div>
+        </div>
+    </div>
+
     <!-- Halaman Utama -->
-    <div id="home-page" class="page active">
+    <div id="home-page" class="page">
         <header>
-            <h1>Date List</h1>
-            <p class="subtitle">Tulis semua list yang akan dilakukan</p>
+            <div class="user-welcome">
+                <h1><i class="fas fa-heart"></i> bersama<span class="highlight">ku</span>...</h1>
+                <p class="subtitle">Selamat datang di ruang spesial kita! 💕</p>
+                <button id="logout-btn" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Keluar</button>
+            </div>
         </header>
 
         <main>
             <div class="add-section">
                 <div class="input-group">
-                    <input type="text" id="new-list-input" placeholder="Buat list baru, misal: Date List 🎬">
-                    <button id="add-list-btn"><i class="fas fa-plus"></i> Tambah</button>
+                    <input type="text" id="new-list-input" placeholder="Buat list baru, misal: Wishlist Bersama 💭">
+                    <button id="add-list-btn"><i class="fas fa-plus-circle"></i> Buat List Baru</button>
                 </div>
                 <p class="hint">Klik list untuk melihat dan mengisi item di dalamnya</p>
             </div>
 
             <div class="lists-container">
-                <h2><i class="fas fa-list"></i> Daftar List Kita</h2>
+                <h2><i class="fas fa-list-heart"></i> Daftar List Kita</h2>
                 <div id="lists"></div>
                 <div id="empty-state" class="empty-state">
-                    <i class="fas fa-heart-broken"></i>
-                    <p>Belum ada list yang dibuat. Yuk buat list pertama kita!</p>
+                    <div class="empty-icon">
+                        <i class="fas fa-heart"></i>
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <h3>Belum ada list nih!</h3>
+                    <p>Ayo bikin list pertama kita di atas! 🥰</p>
+                    <p class="empty-hint">Gampang kok, tinggal ketik nama list dan klik "Buat List Baru"</p>
                 </div>
             </div>
         </main>
 
         <footer>
-            <p>Dibuat dengan <i class="fas fa-heart" style="color: #ff4757;"></i> untuk kita berdua</p>
+            <p>Dibuat dengan <i class="fas fa-heart"></i> untuk kita berdua | 
+            <span style="color: var(--soft-blue);">Biru</span> & 
+            <span style="color: var(--soft-pink);">Pink</span> Edition</p>
         </footer>
     </div>
 
     <!-- Halaman Detail List -->
     <div id="list-page" class="page">
         <header class="list-header">
-            <button id="back-btn" class="back-btn"><i class="fas fa-arrow-left"></i></button>
+            <button id="back-btn" class="back-btn"><i class="fas fa-arrow-left"></i> Kembali</button>
             <h1 id="list-title"></h1>
             <button id="delete-list-btn" class="delete-btn" title="Hapus list"><i class="fas fa-trash-alt"></i></button>
         </header>
@@ -52,8 +91,8 @@
         <main>
             <div class="add-section">
                 <div class="input-group">
-                    <input type="text" id="new-item-input" placeholder="Tambah item baru, misal: Nonton film romantis 🍿">
-                    <button id="add-item-btn"><i class="fas fa-plus"></i> Tambah</button>
+                    <input type="text" id="new-item-input" placeholder="Tambah item baru, misal: Nonton film romantis berdua 🍿">
+                    <button id="add-item-btn"><i class="fas fa-plus-circle"></i> Tambah Item</button>
                 </div>
             </div>
 
@@ -61,8 +100,9 @@
                 <h2><i class="fas fa-check-circle"></i> Item Checklist</h2>
                 <div id="items"></div>
                 <div id="items-empty-state" class="empty-state">
-                    <i class="fas fa-clipboard-list"></i>
-                    <p>Belum ada item di list ini. Yuk tambah item pertama!</p>
+                    <i class="fas fa-clipboard-list-heart"></i>
+                    <h3>List ini masih kosong!</h3>
+                    <p>Tambah item pertama untuk memulai petualangan kita 🚀</p>
                 </div>
             </div>
 
