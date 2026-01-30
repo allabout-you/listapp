@@ -30,3 +30,35 @@ function getProgressColor(progress) {
     if (progress >= 50) return '#FF9800'; // Oranye
     return '#FF5252'; // Merah
 }
+
+// Fungsi untuk inisialisasi toggle password di semua input password
+function initializePasswordToggles() {
+    const toggleButtons = document.querySelectorAll('.toggle-password-btn');
+    
+    toggleButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.parentElement.querySelector('input[type="password"], input[type="text"]');
+            const icon = this.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+                this.setAttribute('title', 'Sembunyikan password');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+                this.setAttribute('title', 'Lihat password');
+            }
+            
+            // Fokus kembali ke input setelah toggle
+            input.focus();
+        });
+    });
+}
+
+// Panggil fungsi ini saat halaman dimuat
+document.addEventListener('DOMContentLoaded', function() {
+    initializePasswordToggles();
+});
