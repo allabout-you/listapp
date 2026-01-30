@@ -599,3 +599,226 @@ footer i {
         padding: 18px;
     }
 }
+/* ... kode sebelumnya tetap sama ... */
+
+/* Halaman Login */
+#login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+}
+
+.login-container {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(15px);
+    border-radius: var(--border-radius);
+    padding: 50px 40px;
+    max-width: 500px;
+    width: 100%;
+    border: 1px solid rgba(106, 137, 204, 0.2);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--soft-blue), var(--soft-pink));
+}
+
+.login-header {
+    margin-bottom: 40px;
+}
+
+.login-header i {
+    font-size: 3.5rem;
+    color: var(--soft-pink);
+    margin-bottom: 20px;
+    display: block;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.8; }
+}
+
+.login-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+.login-subtitle {
+    color: var(--gray);
+    font-size: 1.1rem;
+    margin-top: 10px;
+}
+
+.login-form {
+    margin: 40px 0;
+}
+
+.login-form .input-group {
+    margin-bottom: 30px;
+}
+
+.love-message {
+    background: linear-gradient(135deg, rgba(106, 137, 204, 0.1), rgba(248, 165, 194, 0.05));
+    border-radius: var(--border-radius);
+    padding: 25px;
+    margin-top: 40px;
+    border-left: 4px solid var(--soft-pink);
+    position: relative;
+}
+
+.love-message i:first-child {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    color: var(--soft-pink);
+    opacity: 0.5;
+    font-size: 1.2rem;
+}
+
+.love-message i:last-child {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    color: var(--soft-pink);
+    opacity: 0.5;
+    font-size: 1.2rem;
+}
+
+.love-message p {
+    font-style: italic;
+    color: var(--light-blue);
+    line-height: 1.8;
+    font-size: 1.1rem;
+}
+
+.login-footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+/* User Welcome di Home Page */
+.user-welcome {
+    text-align: center;
+    position: relative;
+}
+
+.logout-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 12px 20px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    font-size: 0.9rem;
+    margin-top: 10px;
+}
+
+.logout-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--danger);
+}
+
+/* Empty State yang Diperbarui */
+.empty-state {
+    text-align: center;
+    padding: 60px 30px;
+    color: var(--gray);
+}
+
+.empty-icon {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 30px;
+}
+
+.empty-icon i:first-child {
+    font-size: 4rem;
+    color: var(--soft-pink);
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0.7;
+    animation: float 3s ease-in-out infinite;
+}
+
+.empty-icon i:last-child {
+    font-size: 2rem;
+    color: var(--soft-blue);
+    position: absolute;
+    bottom: 5px;
+    right: 20px;
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 50%;
+    padding: 8px;
+    animation: bounce 2s infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-15px); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.empty-state h3 {
+    color: var(--soft-blue);
+    font-size: 1.8rem;
+    margin-bottom: 15px;
+    font-weight: 500;
+}
+
+.empty-state p {
+    font-size: 1.1rem;
+    max-width: 400px;
+    margin: 0 auto 10px;
+    line-height: 1.8;
+}
+
+.empty-hint {
+    color: var(--soft-pink);
+    font-style: italic;
+    margin-top: 20px !important;
+    font-size: 1rem !important;
+}
+
+/* Responsive untuk login */
+@media (max-width: 768px) {
+    .login-container {
+        padding: 40px 25px;
+    }
+    
+    .login-header h1 {
+        font-size: 2rem;
+    }
+    
+    .logout-btn {
+        position: relative;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        display: inline-block;
+    }
+}
