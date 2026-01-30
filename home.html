@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home • bersamaku...</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💑</text></svg>">
+</head>
+<body class="home-page">
+    <div class="container">
+        <header class="main-header">
+            <div class="header-left">
+                <div class="logo-small">
+                    <i class="fas fa-heart"></i>
+                    <span>bersamaku</span>
+                </div>
+                <p class="welcome-text">Halo Sayang! 👋</p>
+            </div>
+            <div class="header-right">
+                <button id="logout-btn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Keluar
+                </button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-plus-circle"></i> Buat List Baru</h2>
+                    <p class="card-subtitle">Mulai petualangan baru kita</p>
+                </div>
+                
+                <div class="card-body">
+                    <div class="input-group">
+                        <input type="text" id="new-list-input" placeholder="Contoh: Wishlist Liburan ✈️">
+                        <button id="add-list-btn" class="btn-secondary">
+                            <i class="fas fa-plus"></i> Tambah List
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card lists-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-list-alt"></i> Daftar List Kita</h2>
+                    <div class="filter-section">
+                        <span class="filter-label">Filter:</span>
+                        <button class="filter-btn active" data-filter="all">Semua</button>
+                        <button class="filter-btn" data-filter="active">Aktif</button>
+                        <button class="filter-btn" data-filter="completed">Selesai</button>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div id="lists" class="lists-grid"></div>
+                    
+                    <div id="empty-state" class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-heart"></i>
+                            <i class="fas fa-plus"></i>
+                        </div>
+                        <h3>Belum ada list nih!</h3>
+                        <p>Ayo mulai dengan membuat list pertama kita di atas</p>
+                        <p class="empty-hint">Coba buat list seperti "Date Ideas" atau "Goals Bersama"</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifikasi -->
+    <div id="toast" class="toast"></div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cek apakah sudah login
+            if (localStorage.getItem('dateListLoggedIn') !== 'true') {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Load data
+            let lists = [];
+            const savedData = localStorage.getItem('dateListApp');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                lists = parsedData.lists || [];
+            }
+            
+            // Setup event listeners
+            const logoutBtn = document.getElementById('logout-btn');
+            const addListBtn = document.getElementById('add-list-btn');
+            const newListInput = document.getElementById('new-list-input');
+            const listsContainer = document.getElementById('lists');
+            const emptyState = document.getElementById('empty-state');
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            
+            // Ikon untuk list
+            const listIcons = ["💑", "❤️", "🎯", "✨", "🌟", "🎨", "🌸", "💎", "🎁", "🍿", "🎬", "✈️", "🌴", "🍽️", "🎵"];
+            
+            // Fungsi untuk render list
+            function renderLists(filter = 'all') {
+                let filteredLists = lists;
+                
+                if (filter === 'active') {
+                    filteredLists = lists.filter(list => {
+                        const completedCount = list.items.filter(item => item.completed).length;
+                        return completedCount < list.items.length;
+                    });
+                } else if (filter === 'completed') {
+                    filteredLists = lists.filter(list => {
+                        const completedCount = list.items.filter(item => item.completed).length;
+                        return completedCount === list.items.length && list.items.length > 0;
+                    });
+                }
+                
+                if (filteredLists.length === 0) {
+                    emptyState.style.display = 'block';
+                    listsContainer.style.display = 'none';
+                } else {
+                    emptyState.style.display = 'none';
+                    listsContainer.style.display = 'grid';
+                    listsContainer.innerHTML = '';
+                    
+                    filteredLists.forEach(list => {
+                        const completedCount = list.items.filter(item => item.completed).length;
+                        const totalCount = list.items.length;
+                        const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                        
+                        const listElement = document.createElement('div');
+                        listElement.className = 'list-item';
+                        listElement.innerHTML = `
+                            <div class="list-icon">${list.icon || '💑'}</div>
+                            <div class="list-content">
+                                <h3>${list.name}</h3>
+                                <p>${list.items.length} item</p>
+                                <div class="list-stats">
+                                    <span><i class="fas fa-check-circle"></i> ${completedCount}/${totalCount}</span>
+                                    <span><i class="fas fa-chart-line"></i> ${progress}%</span>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right arrow-icon"></i>
+                        `;
+                        
+                        listElement.addEventListener('click', function() {
+                            localStorage.setItem('currentListId', list.id);
+                            window.location.href = 'list.html';
+                        });
+                        
+                        listsContainer.appendChild(listElement);
+                    });
+                }
+            }
+            
+            // Tambah list baru
+            function addNewList() {
+                const listName = newListInput.value.trim();
+                if (!listName) {
+                    showToast('Nama list tidak boleh kosong sayang! 💕');
+                    return;
+                }
+                
+                const newList = {
+                    id: Date.now().toString(),
+                    name: listName,
+                    items: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    icon: listIcons[Math.floor(Math.random() * listIcons.length)]
+                };
+                
+                lists.push(newList);
+                saveData();
+                renderLists();
+                newListInput.value = '';
+                showToast(`Yeay! List "${listName}" berhasil dibuat! 🎉`);
+                newListInput.focus();
+            }
+            
+            // Simpan data
+            function saveData() {
+                localStorage.setItem('dateListApp', JSON.stringify({ lists }));
+            }
+            
+            // Logout
+            logoutBtn.addEventListener('click', function() {
+                if (confirm('Yakin mau keluar dari ruang spesial kita?')) {
+                    localStorage.removeItem('dateListLoggedIn');
+                    showToast('Sampai jumpa lagi sayang! 😘');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                }
+            });
+            
+            // Add list event
+            addListBtn.addEventListener('click', addNewList);
+            newListInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addNewList();
+            });
+            
+            // Filter event
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    renderLists(this.dataset.filter);
+                });
+            });
+            
+            // Toast function
+            function showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Render initial lists
+            renderLists();
+        });
+    </script>
+</body>
+</html>
