@@ -17,7 +17,7 @@
                     <i class="fas fa-heart"></i>
                     <span>bersamaku</span>
                 </div> -->
-                <p class="welcome-text"></p>
+                <p class="welcome-text">haii sayanggkuuu😍</p>
             </div>
             <div class="header-right">
                 <button id="logout-btn" class="btn-logout">
@@ -35,7 +35,7 @@
                 
                 <div class="card-body">
                     <div class="input-group">
-                        <input type="text" id="new-list-input" placeholder="Contoh: Wishlist Liburan ✈️">
+                        <input type="text" id="new-list-input" placeholder="Contoh: List Jalan-Jalan😋">
                         <button id="add-list-btn" class="btn-secondary">
                             <i class="fas fa-plus"></i> Tambah List
                         </button>
@@ -63,8 +63,8 @@
                             <i class="fas fa-plus"></i>
                         </div>
                         <h3>Belum ada list nih!</h3>
-                        <p>Ayo mulai dengan membuat list pertama kita di atas</p>
-                        <p class="empty-hint">Coba buat list seperti "Date Ideas" atau "Goals Bersama"</p>
+                        <p>Ayo bikin list pertama kita di atas, Gampang kokk</p>
+                        <p class="empty-hint">Coba buat list kayak "Tempat yang harus dikunjungi" atau "List lainnya"</p>
                     </div>
                 </div>
             </div>
@@ -160,7 +160,7 @@
             function addNewList() {
                 const listName = newListInput.value.trim();
                 if (!listName) {
-                    showToast('Nama list tidak boleh kosong sayang! 💕');
+                    showToast('Nama listnya ngga boleh kosong yaa sayang');
                     return;
                 }
                 
@@ -177,7 +177,7 @@
                 saveData();
                 renderLists();
                 newListInput.value = '';
-                showToast(`Yeay! List "${listName}" berhasil dibuat! 🎉`);
+                showToast(`Yeayyy kerenn! List "${listName}" berhasil kamu buat nih🥹`);
                 newListInput.focus();
             }
             
@@ -188,9 +188,9 @@
             
             // Logout
             logoutBtn.addEventListener('click', function() {
-                if (confirm('Yakin mau keluar dari ruang spesial kita?')) {
+                if (confirm('Yakin mau keluar dari website inii?')) {
                     localStorage.removeItem('dateListLoggedIn');
-                    showToast('Sampai jumpa lagi sayang! 😘');
+                    showToast('Yahhh okedehh sayangg, babayyyy!');
                     setTimeout(() => {
                         window.location.href = 'index.html';
                     }, 1000);
