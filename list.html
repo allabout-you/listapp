@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail List • bersamaku...</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💑</text></svg>">
+</head>
+<body class="list-page">
+    <div class="container">
+        <header class="list-header">
+            <a href="home.html" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Kembali
+            </a>
+            <div class="list-title-container">
+                <h1 id="list-title">Loading...</h1>
+                <div class="list-stats">
+                    <span class="stat-badge"><i class="fas fa-tasks"></i> <span id="total-items">0</span> item</span>
+                    <span class="stat-badge"><i class="fas fa-check-circle"></i> <span id="completed-items">0</span> selesai</span>
+                </div>
+            </div>
+            <button id="delete-list-btn" class="btn-delete" title="Hapus list">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </header>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-plus-circle"></i> Tambah Item Baru</h2>
+                </div>
+                
+                <div class="card-body">
+                    <div class="input-group">
+                        <input type="text" id="new-item-input" placeholder="Contoh: Nonton film romantis berdua 🎬">
+                        <button id="add-item-btn" class="btn-secondary">
+                            <i class="fas fa-plus"></i> Tambah Item
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card items-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-check-square"></i> Checklist Items</h2>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <span class="progress-text" id="progress-percent">0%</span>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div id="items" class="items-list"></div>
+                    
+                    <div id="items-empty-state" class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <h3>List ini masih kosong!</h3>
+                        <p>Tambahkan item pertama untuk memulai</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Tanggal Dibuat</h3>
+                        <p id="created-date">-</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Target</h3>
+                        <p id="completion-rate">0% Complete</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Terakhir Diupdate</h3>
+                        <p id="updated-date">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifikasi -->
+    <div id="toast" class="toast"></div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cek apakah sudah login
+            if (localStorage.getItem('dateListLoggedIn') !== 'true') {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Ambil data
+            let lists = [];
+            const savedData = localStorage.getItem('dateListApp');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                lists = parsedData.lists || [];
+            }
+            
+            // Ambil ID list yang sedang dilihat
+            const currentListId = localStorage.getItem('currentListId');
+            if (!currentListId) {
+                window.location.href = 'home.html';
+                return;
+            }
+            
+            // Cari list yang sedang dilihat
+            const currentList = lists.find(list => list.id === currentListId);
+            if (!currentList) {
+                window.location.href = 'home.html';
+                return;
+            }
+            
+            // Setup DOM elements
+            const listTitle = document.getElementById('list-title');
+            const totalItemsEl = document.getElementById('total-items');
+            const completedItemsEl = document.getElementById('completed-items');
+            const progressPercentEl = document.getElementById('progress-percent');
+            const progressFill = document.getElementById('progress-fill');
+            const createdDateEl = document.getElementById('created-date');
+            const updatedDateEl = document.getElementById('updated-date');
+            const completionRateEl = document.getElementById('completion-rate');
+            const newItemInput = document.getElementById('new-item-input');
+            const addItemBtn = document.getElementById('add-item-btn');
+            const deleteListBtn = document.getElementById('delete-list-btn');
+            const itemsContainer = document.getElementById('items');
+            const itemsEmptyState = document.getElementById('items-empty-state');
+            
+            // Render list detail
+            function renderListDetail() {
+                // Set judul
+                listTitle.textContent = currentList.name;
+                
+                // Update stats
+                updateStats();
+                
+                // Format tanggal
+                const createdDate = new Date(currentList.createdAt);
+                const updatedDate = new Date(currentList.updatedAt);
+                
+                createdDateEl.textContent = createdDate.toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+                
+                updatedDateEl.textContent = updatedDate.toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+                
+                // Render items
+                renderItems();
+            }
+            
+            // Update stats
+            function updateStats() {
+                const totalItems = currentList.items.length;
+                const completedItems = currentList.items.filter(item => item.completed).length;
+                const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+                
+                totalItemsEl.textContent = totalItems;
+                completedItemsEl.textContent = completedItems;
+                progressPercentEl.textContent = `${progressPercent}%`;
+                progressFill.style.width = `${progressPercent}%`;
+                completionRateEl.textContent = `${progressPercent}% Complete`;
+            }
+            
+            // Render items
+            function renderItems() {
+                if (currentList.items.length === 0) {
+                    itemsEmptyState.style.display = 'block';
+                    itemsContainer.style.display = 'none';
+                } else {
+                    itemsEmptyState.style.display = 'none';
+                    itemsContainer.style.display = 'flex';
+                    itemsContainer.innerHTML = '';
+                    
+                    currentList.items.forEach(item => {
+                        const itemElement = document.createElement('div');
+                        itemElement.className = 'checklist-item';
+                        itemElement.innerHTML = `
+                            <div class="checkbox ${item.completed ? 'checked' : ''}"></div>
+                            <div class="item-text ${item.completed ? 'completed' : ''}">${item.text}</div>
+                            <button class="delete-item-btn" data-id="${item.id}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        `;
+                        
+                        // Toggle completed
+                        const checkbox = itemElement.querySelector('.checkbox');
+                        const itemText = itemElement.querySelector('.item-text');
+                        
+                        checkbox.addEventListener('click', function() {
+                            item.completed = !item.completed;
+                            checkbox.classList.toggle('checked');
+                            itemText.classList.toggle('completed');
+                            saveData();
+                            updateStats();
+                            showToast(item.completed ? 'Yeay! Item selesai! 🎉' : 'Item belum selesai');
+                        });
+                        
+                        // Klik item text juga bisa
+                        itemText.addEventListener('click', function() {
+                            item.completed = !item.completed;
+                            checkbox.classList.toggle('checked');
+                            itemText.classList.toggle('completed');
+                            saveData();
+                            updateStats();
+                            showToast(item.completed ? 'Yeay! Item selesai! 🎉' : 'Item belum selesai');
+                        });
+                        
+                        // Hapus item
+                        const deleteBtn = itemElement.querySelector('.delete-item-btn');
+                        deleteBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            deleteItem(item.id);
+                        });
+                        
+                        itemsContainer.appendChild(itemElement);
+                    });
+                }
+            }
+            
+            // Tambah item baru
+            function addNewItem() {
+                const itemText = newItemInput.value.trim();
+                if (!itemText) {
+                    showToast('Item tidak boleh kosong sayang! 💕');
+                    return;
+                }
+                
+                const newItem = {
+                    id: Date.now().toString(),
+                    text: itemText,
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                };
+                
+                currentList.items.push(newItem);
+                currentList.updatedAt = new Date().toISOString();
+                saveData();
+                renderListDetail();
+                newItemInput.value = '';
+                showToast('Item berhasil ditambahkan! 💖');
+                newItemInput.focus();
+            }
+            
+            // Hapus item
+            function deleteItem(itemId) {
+                if (confirm('Yakin ingin menghapus item ini?')) {
+                    currentList.items = currentList.items.filter(item => item.id !== itemId);
+                    currentList.updatedAt = new Date().toISOString();
+                    saveData();
+                    renderListDetail();
+                    showToast('Item berhasil dihapus!');
+                }
+            }
+            
+            // Hapus list
+            deleteListBtn.addEventListener('click', function() {
+                if (confirm('Apakah kamu yakin ingin menghapus list ini? Semua item di dalamnya juga akan terhapus.')) {
+                    const listIndex = lists.findIndex(list => list.id === currentListId);
+                    if (listIndex !== -1) {
+                        lists.splice(listIndex, 1);
+                        saveData();
+                        localStorage.removeItem('currentListId');
+                        showToast(`List "${currentList.name}" berhasil dihapus!`);
+                        setTimeout(() => {
+                            window.location.href = 'home.html';
+                        }, 1000);
+                    }
+                }
+            });
+            
+            // Simpan data
+            function saveData() {
+                localStorage.setItem('dateListApp', JSON.stringify({ lists }));
+            }
+            
+            // Toast function
+            function showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Event listeners
+            addItemBtn.addEventListener('click', addNewItem);
+            newItemInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addNewItem();
+            });
+            
+            // Render awal
+            renderListDetail();
+        });
+    </script>
+</body>
+</html>
