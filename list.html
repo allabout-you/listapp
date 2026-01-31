@@ -8,6 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💑</text></svg>">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="list-page">
     <div class="container">
@@ -40,6 +44,7 @@
                             <i class="fas fa-plus"></i> Tambah Item
                         </button>
                     </div>
+                    <p class="hint-text">Item akan langsung terlihat oleh kita berdua 💕</p>
                 </div>
             </div>
 
@@ -62,6 +67,11 @@
                         <h3>Yahh list nya masih kosong nihh!</h3>
                         <p>Ayoo tambahin item listnya diatas buat bikin</p>
                     </div>
+                    
+                    <div class="live-update">
+                        <i class="fas fa-broadcast-tower"></i>
+                        <span>Live update aktif - perubahan langsung tersimpan</span>
+                    </div>
                 </div>
             </div>
 
@@ -71,7 +81,7 @@
                         <i class="fas fa-calendar-check"></i>
                     </div>
                     <div class="stat-content">
-                        <h3>Tanggal Dibuat</h3>
+                        <h3>Dibuat</h3>
                         <p id="created-date">-</p>
                     </div>
                 </div>
@@ -81,8 +91,8 @@
                         <i class="fas fa-bullseye"></i>
                     </div>
                     <div class="stat-content">
-                        <h3>Target</h3>
-                        <p id="completion-rate">0% Complete</p>
+                        <h3>Progress</h3>
+                        <p id="completion-rate">0%</p>
                     </div>
                 </div>
                 
@@ -91,8 +101,8 @@
                         <i class="fas fa-history"></i>
                     </div>
                     <div class="stat-content">
-                        <h3>Terakhir Diupdate</h3>
-                        <p id="updated-date">-</p>
+                        <h3>Terakhir Update</h3>
+                        <p id="updated-date">Baru saja</p>
                     </div>
                 </div>
             </div>
@@ -102,38 +112,36 @@
     <!-- Toast Notifikasi -->
     <div id="toast" class="toast"></div>
 
-    <script src="script.js"></script>
     <script>
+        // Firebase Configuration - HARUS SAMA
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0i9FPn0-IHgG7kAnvTX6YIN356Q5ZUrM",
+            authDomain: "with-you-app-8058a.firebaseapp.com",
+            projectId: "with-you-app-8058a",
+            storageBucket: "with-you-app-8058a.firebasestorage.app",
+            messagingSenderId: "501566707158",
+            appId: "1:501566707158:web:24f31d920555282bd5c077"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Cek apakah sudah login
-            if (localStorage.getItem('dateListLoggedIn') !== 'true') {
+            // Cek login
+            if (localStorage.getItem('isLoggedIn') !== 'true') {
                 window.location.href = 'index.html';
                 return;
             }
-            
-            // Ambil data
-            let lists = [];
-            const savedData = localStorage.getItem('dateListApp');
-            if (savedData) {
-                const parsedData = JSON.parse(savedData);
-                lists = parsedData.lists || [];
-            }
-            
-            // Ambil ID list yang sedang dilihat
-            const currentListId = localStorage.getItem('currentListId');
-            if (!currentListId) {
+
+            // Ambil list ID dari localStorage
+            const listId = localStorage.getItem('currentListId');
+            if (!listId) {
                 window.location.href = 'home.html';
                 return;
             }
-            
-            // Cari list yang sedang dilihat
-            const currentList = lists.find(list => list.id === currentListId);
-            if (!currentList) {
-                window.location.href = 'home.html';
-                return;
-            }
-            
-            // Setup DOM elements
+
+            // DOM Elements
             const listTitle = document.getElementById('list-title');
             const totalItemsEl = document.getElementById('total-items');
             const completedItemsEl = document.getElementById('completed-items');
@@ -147,65 +155,89 @@
             const deleteListBtn = document.getElementById('delete-list-btn');
             const itemsContainer = document.getElementById('items');
             const itemsEmptyState = document.getElementById('items-empty-state');
-            
-            // Render list detail
-            function renderListDetail() {
-                // Set judul
-                listTitle.textContent = currentList.name;
+
+            // Real-time listener untuk list
+            let listUnsubscribe = null;
+
+            // Load list data
+            function loadList() {
+                const listRef = db.collection('lists').doc(listId);
                 
-                // Update stats
-                updateStats();
-                
-                // Format tanggal
-                const createdDate = new Date(currentList.createdAt);
-                const updatedDate = new Date(currentList.updatedAt);
-                
-                createdDateEl.textContent = createdDate.toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
+                listUnsubscribe = listRef.onSnapshot((doc) => {
+                    if (!doc.exists) {
+                        showToast('List tidak ditemukan!');
+                        setTimeout(() => {
+                            window.location.href = 'home.html';
+                        }, 1500);
+                        return;
+                    }
+                    
+                    const list = doc.data();
+                    list.id = doc.id;
+                    
+                    // Update UI
+                    updateListUI(list);
+                    
+                    // Update last active time
+                    updateLastActive();
+                }, (error) => {
+                    console.error("Error loading list:", error);
+                    showToast('Error memuat list. Coba refresh.');
                 });
-                
-                updatedDateEl.textContent = updatedDate.toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                });
-                
-                // Render items
-                renderItems();
             }
-            
-            // Update stats
-            function updateStats() {
-                const totalItems = currentList.items.length;
-                const completedItems = currentList.items.filter(item => item.completed).length;
+
+            // Update UI dengan data list
+            function updateListUI(list) {
+                // Set judul
+                listTitle.textContent = list.name;
+                
+                // Hitung stats
+                const items = list.items || [];
+                const totalItems = items.length;
+                const completedItems = items.filter(item => item.completed).length;
                 const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
                 
+                // Update stats
                 totalItemsEl.textContent = totalItems;
                 completedItemsEl.textContent = completedItems;
                 progressPercentEl.textContent = `${progressPercent}%`;
                 progressFill.style.width = `${progressPercent}%`;
                 completionRateEl.textContent = `${progressPercent}% Complete`;
+                
+                // Update dates
+                if (list.createdAt) {
+                    createdDateEl.textContent = formatDate(list.createdAt);
+                }
+                if (list.updatedAt) {
+                    updatedDateEl.textContent = formatDate(list.updatedAt, true);
+                }
+                
+                // Render items
+                renderItems(items);
             }
-            
+
             // Render items
-            function renderItems() {
-                if (currentList.items.length === 0) {
+            function renderItems(items) {
+                if (items.length === 0) {
                     itemsEmptyState.style.display = 'block';
                     itemsContainer.style.display = 'none';
+                    itemsContainer.innerHTML = '';
                 } else {
                     itemsEmptyState.style.display = 'none';
                     itemsContainer.style.display = 'flex';
                     itemsContainer.innerHTML = '';
                     
-                    currentList.items.forEach(item => {
+                    items.forEach((item, index) => {
                         const itemElement = document.createElement('div');
                         itemElement.className = 'checklist-item';
+                        itemElement.dataset.itemId = item.id || index;
                         itemElement.innerHTML = `
                             <div class="checkbox ${item.completed ? 'checked' : ''}"></div>
-                            <div class="item-text ${item.completed ? 'completed' : ''}">${item.text}</div>
-                            <button class="delete-item-btn" data-id="${item.id}">
+                            <div class="item-text ${item.completed ? 'completed' : ''}">
+                                ${item.text}
+                                ${item.createdBy ? `<span class="item-by">${item.createdBy}</span>` : ''}
+                            </div>
+                            <button class="delete-item-btn" title="Hapus item">
                                 <i class="fas fa-times"></i>
                             </button>
                         `;
@@ -214,113 +246,133 @@
                         const checkbox = itemElement.querySelector('.checkbox');
                         const itemText = itemElement.querySelector('.item-text');
                         
-                        checkbox.addEventListener('click', function() {
-                            item.completed = !item.completed;
-                            checkbox.classList.toggle('checked');
-                            itemText.classList.toggle('completed');
-                            saveData();
-                            updateStats();
-                            showToast(item.completed ? 'Yeayyy! item ini udah selesaii! 🎉' : 'Yahh item ini belum selesai');
-                        });
+                        const toggleCompleted = async () => {
+                            const newItems = [...items];
+                            const itemIndex = newItems.findIndex(it => (it.id || newItems.indexOf(it)) === (item.id || index));
+                            
+                            if (itemIndex !== -1) {
+                                newItems[itemIndex].completed = !newItems[itemIndex].completed;
+                                newItems[itemIndex].updatedAt = new Date().toISOString();
+                                
+                                try {
+                                    await db.collection('lists').doc(listId).update({
+                                        items: newItems,
+                                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                                    });
+                                    // UI akan update otomatis via real-time listener
+                                } catch (error) {
+                                    console.error("Error updating item:", error);
+                                    showToast('Gagal update item. Coba lagi.');
+                                }
+                            }
+                        };
                         
-                        // Klik item text juga bisa
-                        itemText.addEventListener('click', function() {
-                            item.completed = !item.completed;
-                            checkbox.classList.toggle('checked');
-                            itemText.classList.toggle('completed');
-                            saveData();
-                            updateStats();
-                            showToast(item.completed ? 'Yeayyy! item ini udah selesaii! 🎉' : 'Yahh item ini belum selesai');
+                        checkbox.addEventListener('click', toggleCompleted);
+                        itemText.addEventListener('click', function(e) {
+                            if (!e.target.classList.contains('delete-item-btn') && !e.target.closest('.delete-item-btn')) {
+                                toggleCompleted();
+                            }
                         });
                         
                         // Hapus item
                         const deleteBtn = itemElement.querySelector('.delete-item-btn');
-                        deleteBtn.addEventListener('click', function(e) {
+                        deleteBtn.addEventListener('click', async function(e) {
                             e.stopPropagation();
-                            deleteItem(item.id);
+                            if (confirm('Yakin hapus item ini?')) {
+                                const newItems = items.filter((it, idx) => (it.id || idx) !== (item.id || index));
+                                
+                                try {
+                                    await db.collection('lists').doc(listId).update({
+                                        items: newItems,
+                                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                                    });
+                                    showToast('Okeiii Itemnya udah dihapus!');
+                                } catch (error) {
+                                    console.error("Error deleting item:", error);
+                                    showToast('Gagal menghapus item.');
+                                }
+                            }
                         });
                         
                         itemsContainer.appendChild(itemElement);
                     });
                 }
             }
-            
+
             // Tambah item baru
-            function addNewItem() {
+            async function addNewItem() {
                 const itemText = newItemInput.value.trim();
                 if (!itemText) {
                     showToast('Nama itemnya ngga boleh kosong yaa sayangg...');
+                    newItemInput.focus();
                     return;
                 }
                 
-                const newItem = {
-                    id: Date.now().toString(),
-                    text: itemText,
-                    completed: false,
-                    createdAt: new Date().toISOString()
-                };
-                
-                currentList.items.push(newItem);
-                currentList.updatedAt = new Date().toISOString();
-                saveData();
-                renderListDetail();
-                newItemInput.value = '';
-                showToast('Kerenn!! Item berhasil ditambahin nihh! 💖');
-                newItemInput.focus();
-            }
-            
-            // Hapus item
-            function deleteItem(itemId) {
-                if (confirm('Yakin ingin menghapus item ini?')) {
-                    currentList.items = currentList.items.filter(item => item.id !== itemId);
-                    currentList.updatedAt = new Date().toISOString();
-                    saveData();
-                    renderListDetail();
-                    showToast('Okeiii Itemnya udah dihapus!');
+                try {
+                    addItemBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+                    addItemBtn.disabled = true;
+                    
+                    // Get current list
+                    const listRef = db.collection('lists').doc(listId);
+                    const listDoc = await listRef.get();
+                    
+                    if (!listDoc.exists) {
+                        showToast('List tidak ditemukan!');
+                        return;
+                    }
+                    
+                    const list = listDoc.data();
+                    const currentItems = list.items || [];
+                    
+                    // Add new item
+                    const newItem = {
+                        id: Date.now().toString(),
+                        text: itemText,
+                        completed: false,
+                        createdAt: new Date().toISOString(),
+                        createdBy: getCurrentUserInitial()
+                    };
+                    
+                    await listRef.update({
+                        items: [...currentItems, newItem],
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    newItemInput.value = '';
+                    showToast('Kerenn!! Item berhasil ditambahin nihh! 💖');
+                    newItemInput.focus();
+                    
+                } catch (error) {
+                    console.error("Error adding item:", error);
+                    showToast('Gagal menambah item. Coba lagi.');
+                } finally {
+                    addItemBtn.innerHTML = '<i class="fas fa-plus"></i> Tambah Item';
+                    addItemBtn.disabled = false;
                 }
             }
-            
+
             // Hapus list
-            deleteListBtn.addEventListener('click', function() {
+            deleteListBtn.addEventListener('click', async function() {
                 if (confirm('Yahhh Kamu yakin nih mau hapus list ini? nanti semua item di dalamnya bakal kehapus juga lohh...🙁')) {
-                    const listIndex = lists.findIndex(list => list.id === currentListId);
-                    if (listIndex !== -1) {
-                        lists.splice(listIndex, 1);
-                        saveData();
+                    try {
+                        await db.collection('lists').doc(listId).delete();
+                        showToast('List berhasil dihapus!');
                         localStorage.removeItem('currentListId');
-                        showToast(`List "${currentList.name}" berhasil dihapus!`);
                         setTimeout(() => {
                             window.location.href = 'home.html';
                         }, 1000);
+                    } catch (error) {
+                        console.error("Error deleting list:", error);
+                        showToast('Gagal menghapus list.');
                     }
                 }
             });
-            
-            // Simpan data
-            function saveData() {
-                localStorage.setItem('dateListApp', JSON.stringify({ lists }));
-            }
-            
-            // Toast function
-            function showToast(message) {
-                const toast = document.getElementById('toast');
-                toast.textContent = message;
-                toast.classList.add('show');
+
+            // Format tanggal
+            function formatDate(timestamp, showTime = false) {
+                if (!timestamp) return '-';
                 
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 3000);
-            }
-            
-            // Event listeners
-            addItemBtn.addEventListener('click', addNewItem);
-            newItemInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') addNewItem();
-            });
-            
-            // Render awal
-            renderListDetail();
-        });
-    </script>
-</body>
-</html>
+                const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+                
+                if (showTime) {
+                    const now = new
