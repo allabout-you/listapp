@@ -15,15 +15,58 @@
 </head>
 <body class="home-page">
     <div class="container">
+        <!-- User Selection Modal -->
+        <div id="user-modal" class="user-modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-heart"></i> Hai, Kamu yang mana?</h2>
+                    <p class="modal-subtitle">Pilih identitas kamu biar kita tau siapa nih yang bikin list</p>
+                </div>
+                <div class="user-options">
+                    <div class="user-option boy-option" data-user="boy">
+                        <div class="user-emoji">💙</div>
+                        <h3>Boy</h3>
+                        <p>(Biasanya cowo)</p>
+                        <div class="user-desc">
+                            <p><i class="fas fa-check-circle"></i> Akan muncul sebagai 💙</p>
+                            <p><i class="fas fa-user"></i> Bisa buat & edit list</p>
+                        </div>
+                    </div>
+                    <div class="user-option girl-option" data-user="girl">
+                        <div class="user-emoji">💗</div>
+                        <h3>Girl</h3>
+                        <p>(Biasanya cewe)</p>
+                        <div class="user-desc">
+                            <p><i class="fas fa-check-circle"></i> Akan muncul sebagai 💗</p>
+                            <p><i class="fas fa-user"></i> Bisa buat & edit list</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-note">
+                    <p><i class="fas fa-info-circle"></i> Pilihan akan disimpan di perangkat ini</p>
+                    <p><i class="fas fa-sync-alt"></i> Bisa ganti nanti di menu settings</p>
+                </div>
+            </div>
+        </div>
+
         <header class="main-header">
             <div class="header-left">
-                <p class="welcome-text">haii sayanggkuuu😍</p>
+                <p class="welcome-text" id="welcome-text">haii sayanggkuuu😍</p>
                 <div class="sync-indicator" id="sync-indicator">
                     <i class="fas fa-sync-alt"></i>
                     <span>Memuat...</span>
                 </div>
             </div>
             <div class="header-right">
+                <div class="user-info" id="user-info" style="display: none;">
+                    <div class="user-badge" id="user-badge">
+                        <i class="fas fa-user"></i>
+                        <span id="user-name">Loading...</span>
+                    </div>
+                    <button id="change-user-btn" class="btn-change-user" title="Ganti user">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
                 <button id="logout-btn" class="btn-logout">
                     <i class="fas fa-sign-out-alt"></i> Keluar
                 </button>
@@ -112,8 +155,153 @@
 
         const SHARED_USER_ID = "couple_together";
 
+        // ==================== USER MANAGEMENT ====================
+        class UserManager {
+            constructor() {
+                this.currentUser = null;
+                this.deviceId = this.getDeviceId();
+                this.init();
+            }
+
+            getDeviceId() {
+                let deviceId = localStorage.getItem('deviceId');
+                if (!deviceId) {
+                    deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('deviceId', deviceId);
+                }
+                return deviceId;
+            }
+
+            init() {
+                // Load user dari localStorage
+                const savedUser = localStorage.getItem('currentUser');
+                if (savedUser) {
+                    this.currentUser = JSON.parse(savedUser);
+                }
+            }
+
+            getUser() {
+                return this.currentUser;
+            }
+
+            getUserForDisplay() {
+                if (!this.currentUser) return "💑 Guest";
+                
+                const emoji = this.currentUser.type === 'boy' ? '💙' : '💗';
+                const name = this.currentUser.type === 'boy' ? 'Boy' : 'Girl';
+                const shortId = this.deviceId.substring(0, 4);
+                
+                return `${emoji} ${name} (${shortId})`;
+            }
+
+            getUserForDatabase() {
+                if (!this.currentUser) {
+                    return {
+                        type: 'guest',
+                        emoji: '💑',
+                        name: 'Guest',
+                        deviceId: this.deviceId
+                    };
+                }
+                
+                return {
+                    type: this.currentUser.type,
+                    emoji: this.currentUser.type === 'boy' ? '💙' : '💗',
+                    name: this.currentUser.type === 'boy' ? 'Boy' : 'Girl',
+                    deviceId: this.deviceId,
+                    selectedAt: this.currentUser.selectedAt
+                };
+            }
+
+            setUser(userType) {
+                this.currentUser = {
+                    type: userType,
+                    selectedAt: new Date().toISOString()
+                };
+                
+                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                
+                // Simpan ke Firebase juga untuk tracking
+                this.saveUserToFirebase();
+                
+                // Update UI
+                this.updateUI();
+                
+                return this.currentUser;
+            }
+
+            async saveUserToFirebase() {
+                if (!db) return;
+                
+                try {
+                    const userData = this.getUserForDatabase();
+                    userData.lastSeen = firebase.firestore.FieldValue.serverTimestamp();
+                    
+                    await db.collection('users').doc(this.deviceId).set(userData, { merge: true });
+                    console.log("✅ User saved to Firebase");
+                } catch (error) {
+                    console.error("❌ Error saving user to Firebase:", error);
+                }
+            }
+
+            updateUI() {
+                const welcomeText = document.getElementById('welcome-text');
+                const userBadge = document.getElementById('user-badge');
+                const userNameSpan = document.getElementById('user-name');
+                const userInfoDiv = document.getElementById('user-info');
+                
+                if (this.currentUser) {
+                    const displayText = this.getUserForDisplay();
+                    
+                    // Update welcome text berdasarkan user
+                    if (this.currentUser.type === 'boy') {
+                        welcomeText.textContent = "Hai my lovely girl! 😘";
+                    } else if (this.currentUser.type === 'girl') {
+                        welcomeText.textContent = "Hai sayanggkuuu! 😍";
+                    } else {
+                        welcomeText.textContent = "Hai kita berdua! 💕";
+                    }
+                    
+                    // Update user badge
+                    userNameSpan.textContent = displayText;
+                    userInfoDiv.style.display = 'flex';
+                    
+                    // Update badge color
+                    userBadge.className = `user-badge ${this.currentUser.type}`;
+                } else {
+                    userInfoDiv.style.display = 'none';
+                    welcomeText.textContent = "haii sayanggkuuu😍";
+                }
+            }
+
+            showSelectionModal() {
+                const modal = document.getElementById('user-modal');
+                modal.style.display = 'flex';
+                
+                // Tambahkan event listeners untuk pilihan
+                const options = document.querySelectorAll('.user-option');
+                options.forEach(option => {
+                    option.addEventListener('click', () => {
+                        const userType = option.dataset.user;
+                        this.setUser(userType);
+                        modal.style.display = 'none';
+                        showToast(`Yeayy! Sekarang kamu jadi ${userType === 'boy' ? '💙 Boy' : '💗 Girl'}!`);
+                    });
+                });
+            }
+
+            changeUser() {
+                if (confirm('Yakin mau ganti user? Pilihanmu akan disimpan.')) {
+                    this.showSelectionModal();
+                }
+            }
+        }
+
         // ==================== APP LOGIC ====================
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize User Manager
+            const userManager = new UserManager();
+            
             // Debug elements
             const debugInfo = document.querySelector('.debug-info');
             const debugText = document.getElementById('debug-text');
@@ -139,6 +327,7 @@
             const emptyState = document.getElementById('empty-state');
             const syncIndicator = document.getElementById('sync-indicator');
             const loadingState = document.getElementById('loading-state');
+            const changeUserBtn = document.getElementById('change-user-btn');
 
             // List icons
             const listIcons = ["💑", "❤️", "🎯", "✨", "🌟", "🎨", "🌸", "💎", "🎁", "🍿", "🎬", "✈️", "🌴", "🍽️", "🎵"];
@@ -146,29 +335,20 @@
             // Store loaded lists
             let loadedLists = [];
 
-            // ==================== TEST FIREBASE ====================
-            async function testFirebase() {
-                debugText.textContent = 'Testing Firebase connection...';
-                
-                if (!db) {
-                    debugText.textContent = 'Firestore not initialized';
-                    showToast('Firebase error: Database not initialized');
-                    return false;
-                }
-                
-                try {
-                    // Test 1: Simple query
-                    const test = await db.collection('test').limit(1).get();
-                    debugText.textContent = 'Firebase test passed';
-                    return true;
-                } catch (error) {
-                    debugText.textContent = `Firebase error: ${error.code}`;
-                    showToast(`Firebase error: ${error.message}`);
-                    return false;
+            // ==================== CHECK USER SELECTION ====================
+            function checkUserSelection() {
+                if (!userManager.getUser()) {
+                    // Tampilkan modal pilihan user
+                    setTimeout(() => {
+                        userManager.showSelectionModal();
+                    }, 500);
+                } else {
+                    // Update UI dengan user yang sudah dipilih
+                    userManager.updateUI();
                 }
             }
 
-            // ==================== LOAD LISTS (SIMPLE VERSION) ====================
+            // ==================== LOAD LISTS ====================
             async function loadListsSimple() {
                 debugText.textContent = 'Loading lists...';
                 loadingState.style.display = 'block';
@@ -180,6 +360,7 @@
                     // Get all lists for our shared user
                     const querySnapshot = await db.collection('lists')
                         .where('sharedUserId', '==', SHARED_USER_ID)
+                        .orderBy('updatedAt', 'desc')
                         .get();
                     
                     debugText.textContent = `Found ${querySnapshot.size} lists`;
@@ -234,6 +415,14 @@
                     const totalCount = list.items ? list.items.length : 0;
                     const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
                     
+                    // Determine creator badge style
+                    let creatorBadgeClass = 'creator-badge';
+                    if (list.createdBy && list.createdBy.includes('💙')) {
+                        creatorBadgeClass += ' creator-boy';
+                    } else if (list.createdBy && list.createdBy.includes('💗')) {
+                        creatorBadgeClass += ' creator-girl';
+                    }
+                    
                     const listElement = document.createElement('div');
                     listElement.className = 'list-item';
                     listElement.innerHTML = `
@@ -242,7 +431,7 @@
                             <h3>${list.name}</h3>
                             <div class="list-meta">
                                 <span><i class="far fa-calendar"></i> ${formatDate(list.createdAt)}</span>
-                                ${list.createdBy ? `<span><i class="fas fa-user"></i> ${list.createdBy}</span>` : ''}
+                                ${list.createdBy ? `<span class="${creatorBadgeClass}"><i class="fas fa-user"></i> ${list.createdBy}</span>` : ''}
                             </div>
                             <div class="list-stats">
                                 <span><i class="fas fa-check-circle"></i> ${completedCount}/${totalCount}</span>
@@ -266,6 +455,13 @@
 
             // ==================== ADD NEW LIST ====================
             async function addNewList() {
+                // Cek user sudah dipilih
+                if (!userManager.getUser()) {
+                    showToast('Pilih user dulu ya sayang! 💕');
+                    userManager.showSelectionModal();
+                    return;
+                }
+                
                 const listName = newListInput.value.trim();
                 if (!listName) {
                     showToast('Nama listnya ngga boleh kosong yaa sayanggg');
@@ -284,15 +480,24 @@
                     addListBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
                     addListBtn.disabled = true;
                     
-                    // Prepare data
+                    // Prepare data dengan user info
+                    const userInfo = userManager.getUserForDatabase();
+                    const userDisplay = userManager.getUserForDisplay();
+                    
                     const listData = {
                         name: listName,
                         sharedUserId: SHARED_USER_ID,
                         icon: listIcons[Math.floor(Math.random() * listIcons.length)],
                         items: [],
+                        createdBy: userDisplay,
+                        createdByDetails: {
+                            type: userInfo.type,
+                            emoji: userInfo.emoji,
+                            deviceId: userInfo.deviceId
+                        },
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        createdBy: getCurrentUserInitial()
+                        lastEditedBy: userDisplay
                     };
                     
                     debugText.textContent = 'Saving to Firebase...';
@@ -319,6 +524,9 @@
                     // Update sync indicator
                     syncIndicator.innerHTML = `<i class="fas fa-check-circle"></i> <span>${loadedLists.length} list • Updated</span>`;
                     
+                    // Auto-refresh lists
+                    setTimeout(loadListsSimple, 1000);
+                    
                 } catch (error) {
                     console.error("Error adding list:", error);
                     debugText.textContent = `Save error: ${error.code}`;
@@ -331,22 +539,6 @@
             }
 
             // ==================== HELPER FUNCTIONS ====================
-            function getCurrentUserInitial() {
-                try {
-                    const hour = new Date().getHours();
-                    let deviceId = localStorage.getItem('deviceId');
-                    
-                    if (!deviceId) {
-                        deviceId = 'dev_' + Math.random().toString(36).substr(2, 6);
-                        localStorage.setItem('deviceId', deviceId);
-                    }
-                    
-                    return hour < 12 ? `💙 (${deviceId.substring(0, 3)})` : `💗 (${deviceId.substring(0, 3)})`;
-                } catch (error) {
-                    return '💑';
-                }
-            }
-
             function formatDate(timestamp) {
                 if (!timestamp) return 'Baru saja';
                 try {
@@ -401,6 +593,10 @@
                 if (e.key === 'Enter') addNewList();
             });
 
+            changeUserBtn.addEventListener('click', function() {
+                userManager.changeUser();
+            });
+
             // Auto-focus
             setTimeout(() => {
                 newListInput.focus();
@@ -409,21 +605,21 @@
             // ==================== INITIALIZE ====================
             debugText.textContent = 'Starting app...';
             
-            // Test Firebase first
-            testFirebase().then(success => {
-                if (success) {
-                    // Load lists
+            // Initialize user
+            checkUserSelection();
+            
+            // Load lists
+            if (db) {
+                loadListsSimple();
+                
+                // Set up auto-refresh every 10 seconds
+                setInterval(() => {
                     loadListsSimple();
-                    
-                    // Set up auto-refresh every 10 seconds
-                    setInterval(() => {
-                        loadListsSimple();
-                    }, 10000);
-                } else {
-                    debugText.textContent = 'Firebase test failed';
-                    showToast('Tidak bisa terhubung ke database');
-                }
-            });
+                }, 10000);
+            } else {
+                debugText.textContent = 'Firebase not initialized';
+                showToast('Tidak bisa terhubung ke database');
+            }
         });
     </script>
 </body>
