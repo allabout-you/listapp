@@ -20,7 +20,7 @@
                 <p class="welcome-text">haii sayanggkuuu😍</p>
                 <div class="sync-indicator" id="sync-indicator">
                     <i class="fas fa-sync-alt"></i>
-                    <span>Live sync aktif</span>
+                    <span>Memuat...</span>
                 </div>
             </div>
             <div class="header-right">
@@ -71,6 +71,11 @@
                         <p>Ayo bikin list pertama kita di atas, Gampang kok sayangg</p>
                         <p class="empty-hint">Coba buat list kayak<br>"List Main 14 Februari" atau "List lainnya"</p>
                     </div>
+                    
+                    <div id="loading-state" class="loading-state" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Memuat list...</span>
+                    </div>
                 </div>
             </div>
             
@@ -85,7 +90,7 @@
     <div id="toast" class="toast"></div>
 
     <script>
-        // Firebase Configuration - HARUS SAMA
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyC0i9FPn0-IHgG7kAnvTX6YIN356Q5ZUrM",
             authDomain: "with-you-app-8058a.firebaseapp.com",
@@ -96,8 +101,13 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        let db;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+        }
 
         // Shared user ID (sama untuk kita berdua)
         const SHARED_USER_ID = "couple_together";
@@ -120,15 +130,29 @@
             const emptyState = document.getElementById('empty-state');
             const filterBtns = document.querySelectorAll('.filter-btn');
             const syncIndicator = document.getElementById('sync-indicator');
+            const loadingState = document.getElementById('loading-state');
 
             // List icons
             const listIcons = ["💑", "❤️", "🎯", "✨", "🌟", "🎨", "🌸", "💎", "🎁", "🍿", "🎬", "✈️", "🌴", "🍽️", "🎵"];
             
             // Real-time listener untuk lists
             let listsUnsubscribe = null;
+            let currentFilter = 'all';
 
             // Fungsi untuk load lists dari Firebase
             function loadLists() {
+                if (!db) {
+                    showToast('Database tidak terhubung. Coba refresh.');
+                    syncIndicator.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <span>Offline</span>`;
+                    syncIndicator.style.color = "#FF9800";
+                    return;
+                }
+
+                // Show loading
+                loadingState.style.display = 'flex';
+                listsContainer.innerHTML = '';
+                emptyState.style.display = 'none';
+
                 // Unsubscribe sebelumnya jika ada
                 if (listsUnsubscribe) {
                     listsUnsubscribe();
@@ -139,6 +163,7 @@
                     .where('sharedUserId', '==', SHARED_USER_ID)
                     .orderBy('createdAt', 'desc')
                     .onSnapshot((snapshot) => {
+                        loadingState.style.display = 'none';
                         listsContainer.innerHTML = '';
                         let hasLists = false;
                         let listsCount = 0;
@@ -154,10 +179,16 @@
                         
                         emptyState.style.display = hasLists ? 'none' : 'block';
                         syncIndicator.innerHTML = `<i class="fas fa-check-circle"></i> <span>${listsCount} list • Live sync</span>`;
+                        syncIndicator.style.color = "#4CAF50";
+                        
+                        // Apply current filter
+                        applyFilter(currentFilter);
                         
                         // Update last active time setiap kali data berubah
                         updateLastActive();
+                        
                     }, (error) => {
+                        loadingState.style.display = 'none';
                         console.error("Error loading lists:", error);
                         syncIndicator.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Error sync</span>`;
                         syncIndicator.style.color = "#FF5252";
@@ -173,6 +204,7 @@
                 
                 const listElement = document.createElement('div');
                 listElement.className = 'list-item';
+                listElement.dataset.progress = progress;
                 listElement.innerHTML = `
                     <div class="list-icon">${list.icon || '💑'}</div>
                     <div class="list-content">
@@ -198,6 +230,30 @@
                 listsContainer.appendChild(listElement);
             }
 
+            // Apply filter function
+            function applyFilter(filterType) {
+                currentFilter = filterType;
+                const lists = document.querySelectorAll('.list-item');
+                
+                if (lists.length === 0) return;
+                
+                lists.forEach(list => {
+                    const progress = parseInt(list.dataset.progress);
+                    
+                    switch(filterType) {
+                        case 'all':
+                            list.style.display = 'block';
+                            break;
+                        case 'active':
+                            list.style.display = progress < 100 ? 'block' : 'none';
+                            break;
+                        case 'completed':
+                            list.style.display = progress === 100 ? 'block' : 'none';
+                            break;
+                    }
+                });
+            }
+
             // Fungsi untuk tambah list baru
             async function addNewList() {
                 const listName = newListInput.value.trim();
@@ -207,8 +263,14 @@
                     return;
                 }
                 
+                if (!db) {
+                    showToast('Database tidak terhubung. Coba refresh.');
+                    return;
+                }
+                
                 try {
                     // Disable button saat proses
+                    const originalText = addListBtn.innerHTML;
                     addListBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
                     addListBtn.disabled = true;
                     
@@ -220,7 +282,7 @@
                         items: [],
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        createdBy: getCurrentUserInitial() // Menandai siapa yang buat
+                        createdBy: getCurrentUserInitial()
                     });
                     
                     // Reset input
@@ -240,6 +302,8 @@
 
             // Fungsi untuk update last active time
             async function updateLastActive() {
+                if (!db) return;
+                
                 try {
                     await db.collection('sharedUsers').doc(SHARED_USER_ID).update({
                         lastActive: firebase.firestore.FieldValue.serverTimestamp()
@@ -251,39 +315,59 @@
 
             // Fungsi untuk mendapatkan inisial user
             function getCurrentUserInitial() {
-                // Bisa disesuaikan, misal berdasarkan device atau waktu
-                const hour = new Date().getHours();
-                const deviceId = localStorage.getItem('deviceId') || generateDeviceId();
-                localStorage.setItem('deviceId', deviceId);
-                
-                return hour < 12 ? `💙 (${deviceId.substring(0, 3)})` : `💗 (${deviceId.substring(0, 3)})`;
+                try {
+                    const hour = new Date().getHours();
+                    const deviceId = localStorage.getItem('deviceId') || generateDeviceId();
+                    localStorage.setItem('deviceId', deviceId);
+                    
+                    return hour < 12 ? `💙 (${deviceId.substring(0, 3)})` : `💗 (${deviceId.substring(0, 3)})`;
+                } catch (error) {
+                    return '💑';
+                }
             }
 
             // Generate simple device ID
             function generateDeviceId() {
-                return 'dev_' + Math.random().toString(36).substr(2, 9);
+                return 'dev_' + Math.random().toString(36).substr(2, 6);
             }
 
-            // Format tanggal
+            // Format tanggal yang lebih robust
             function formatDate(timestamp) {
                 if (!timestamp) return 'Baru saja';
                 
-                const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-                const now = new Date();
-                const diffMs = now - date;
-                const diffMins = Math.floor(diffMs / 60000);
-                const diffHours = Math.floor(diffMs / 3600000);
-                const diffDays = Math.floor(diffMs / 86400000);
-                
-                if (diffMins < 1) return 'Baru saja';
-                if (diffMins < 60) return `${diffMins} menit lalu`;
-                if (diffHours < 24) return `${diffHours} jam lalu`;
-                if (diffDays < 7) return `${diffDays} hari lalu`;
-                
-                return date.toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'short'
-                });
+                try {
+                    let date;
+                    if (timestamp && timestamp.toDate) {
+                        date = timestamp.toDate();
+                    } else if (timestamp instanceof Date) {
+                        date = timestamp;
+                    } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+                        date = new Date(timestamp);
+                    } else {
+                        return '-';
+                    }
+                    
+                    if (isNaN(date.getTime())) return '-';
+                    
+                    const now = new Date();
+                    const diffMs = now - date;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+                    
+                    if (diffMins < 1) return 'Baru saja';
+                    if (diffMins < 60) return `${diffMins} menit lalu`;
+                    if (diffHours < 24) return `${diffHours} jam lalu`;
+                    if (diffDays < 7) return `${diffDays} hari lalu`;
+                    
+                    return date.toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short'
+                    });
+                } catch (error) {
+                    console.error("Date formatting error:", error);
+                    return '-';
+                }
             }
 
             // Logout
@@ -293,6 +377,7 @@
                         listsUnsubscribe();
                     }
                     localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('currentListId');
                     showToast('Sampai jumpa lagii sayangg, babayyyy!');
                     setTimeout(() => {
                         window.location.href = 'index.html';
@@ -306,25 +391,28 @@
                 if (e.key === 'Enter') addNewList();
             });
 
-            // Filter (client-side)
+            // Filter event listener
             filterBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
                     filterBtns.forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
-                    // Untuk sekarang filter semua dulu
-                    // Bisa ditambahkan filter logic nanti
+                    applyFilter(this.dataset.filter);
                 });
             });
 
             // Toast function
             function showToast(message) {
-                const toast = document.getElementById('toast');
-                toast.textContent = message;
-                toast.classList.add('show');
-                
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 3000);
+                try {
+                    const toast = document.getElementById('toast');
+                    toast.textContent = message;
+                    toast.classList.add('show');
+                    
+                    setTimeout(() => {
+                        toast.classList.remove('show');
+                    }, 3000);
+                } catch (error) {
+                    console.error("Toast error:", error);
+                }
             }
 
             // Cleanup
@@ -335,7 +423,9 @@
             });
 
             // Auto-focus pada input
-            newListInput.focus();
+            setTimeout(() => {
+                newListInput.focus();
+            }, 500);
             
             // Load lists pertama kali
             loadLists();
