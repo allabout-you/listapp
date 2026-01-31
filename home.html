@@ -8,16 +8,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💑</text></svg>">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="home-page">
     <div class="container">
         <header class="main-header">
             <div class="header-left">
-                <!-- <div class="logo-small">
-                    <i class="fas fa-heart"></i>
-                    <span>bersamaku</span>
-                </div> -->
                 <p class="welcome-text">haii sayanggkuuu😍</p>
+                <div class="sync-indicator" id="sync-indicator">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Live sync aktif</span>
+                </div>
             </div>
             <div class="header-right">
                 <button id="logout-btn" class="btn-logout">
@@ -40,6 +44,7 @@
                             <i class="fas fa-plus"></i> Tambah List
                         </button>
                     </div>
+                    <p class="hint-text">List akan langsung terlihat oleh kita berdua 💕</p>
                 </div>
             </div>
 
@@ -68,150 +73,249 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="shared-notice">
+                <i class="fas fa-users"></i>
+                <p><strong>Live Sync Aktif</strong> - Perubahan yang kamu buat akan langsung terlihat oleh pasanganmu!</p>
+            </div>
         </div>
     </div>
 
     <!-- Toast Notifikasi -->
     <div id="toast" class="toast"></div>
 
-    <script src="script.js"></script>
     <script>
+        // Firebase Configuration - HARUS SAMA
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0i9FPn0-IHgG7kAnvTX6YIN356Q5ZUrM",
+            authDomain: "with-you-app-8058a.firebaseapp.com",
+            projectId: "with-you-app-8058a",
+            storageBucket: "with-you-app-8058a.firebasestorage.app",
+            messagingSenderId: "501566707158",
+            appId: "1:501566707158:web:24f31d920555282bd5c077"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Shared user ID (sama untuk kita berdua)
+        const SHARED_USER_ID = "couple_together";
+
         document.addEventListener('DOMContentLoaded', function() {
             // Cek apakah sudah login
-            if (localStorage.getItem('dateListLoggedIn') !== 'true') {
+            if (localStorage.getItem('isLoggedIn') !== 'true') {
                 window.location.href = 'index.html';
                 return;
             }
-            
-            // Load data
-            let lists = [];
-            const savedData = localStorage.getItem('dateListApp');
-            if (savedData) {
-                const parsedData = JSON.parse(savedData);
-                lists = parsedData.lists || [];
-            }
-            
-            // Setup event listeners
+
+            // Update last active time di Firebase
+            updateLastActive();
+
+            // DOM Elements
             const logoutBtn = document.getElementById('logout-btn');
             const addListBtn = document.getElementById('add-list-btn');
             const newListInput = document.getElementById('new-list-input');
             const listsContainer = document.getElementById('lists');
             const emptyState = document.getElementById('empty-state');
             const filterBtns = document.querySelectorAll('.filter-btn');
-            
-            // Ikon untuk list
+            const syncIndicator = document.getElementById('sync-indicator');
+
+            // List icons
             const listIcons = ["💑", "❤️", "🎯", "✨", "🌟", "🎨", "🌸", "💎", "🎁", "🍿", "🎬", "✈️", "🌴", "🍽️", "🎵"];
             
-            // Fungsi untuk render list
-            function renderLists(filter = 'all') {
-                let filteredLists = lists;
-                
-                if (filter === 'active') {
-                    filteredLists = lists.filter(list => {
-                        const completedCount = list.items.filter(item => item.completed).length;
-                        return completedCount < list.items.length;
-                    });
-                } else if (filter === 'completed') {
-                    filteredLists = lists.filter(list => {
-                        const completedCount = list.items.filter(item => item.completed).length;
-                        return completedCount === list.items.length && list.items.length > 0;
-                    });
+            // Real-time listener untuk lists
+            let listsUnsubscribe = null;
+
+            // Fungsi untuk load lists dari Firebase
+            function loadLists() {
+                // Unsubscribe sebelumnya jika ada
+                if (listsUnsubscribe) {
+                    listsUnsubscribe();
                 }
-                
-                if (filteredLists.length === 0) {
-                    emptyState.style.display = 'block';
-                    listsContainer.style.display = 'none';
-                } else {
-                    emptyState.style.display = 'none';
-                    listsContainer.style.display = 'grid';
-                    listsContainer.innerHTML = '';
-                    
-                    filteredLists.forEach(list => {
-                        const completedCount = list.items.filter(item => item.completed).length;
-                        const totalCount = list.items.length;
-                        const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+                // Subscribe ke real-time updates
+                listsUnsubscribe = db.collection('lists')
+                    .where('sharedUserId', '==', SHARED_USER_ID)
+                    .orderBy('createdAt', 'desc')
+                    .onSnapshot((snapshot) => {
+                        listsContainer.innerHTML = '';
+                        let hasLists = false;
+                        let listsCount = 0;
                         
-                        const listElement = document.createElement('div');
-                        listElement.className = 'list-item';
-                        listElement.innerHTML = `
-                            <div class="list-icon">${list.icon || '💑'}</div>
-                            <div class="list-content">
-                                <h3>${list.name}</h3>
-                                <p>${list.items.length} item</p>
-                                <div class="list-stats">
-                                    <span><i class="fas fa-check-circle"></i> ${completedCount}/${totalCount}</span>
-                                    <span><i class="fas fa-chart-line"></i> ${progress}%</span>
-                                </div>
-                            </div>
-                            <i class="fas fa-chevron-right arrow-icon"></i>
-                        `;
-                        
-                        listElement.addEventListener('click', function() {
-                            localStorage.setItem('currentListId', list.id);
-                            window.location.href = 'list.html';
+                        snapshot.forEach((doc) => {
+                            hasLists = true;
+                            listsCount++;
+                            const list = doc.data();
+                            list.id = doc.id;
+                            
+                            renderList(list);
                         });
                         
-                        listsContainer.appendChild(listElement);
+                        emptyState.style.display = hasLists ? 'none' : 'block';
+                        syncIndicator.innerHTML = `<i class="fas fa-check-circle"></i> <span>${listsCount} list • Live sync</span>`;
+                        
+                        // Update last active time setiap kali data berubah
+                        updateLastActive();
+                    }, (error) => {
+                        console.error("Error loading lists:", error);
+                        syncIndicator.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Error sync</span>`;
+                        syncIndicator.style.color = "#FF5252";
+                        showToast('Gagal sinkron data. Coba refresh halaman.');
                     });
-                }
             }
-            
-            // Tambah list baru
-            function addNewList() {
+
+            // Fungsi untuk render satu list
+            function renderList(list) {
+                const completedCount = list.items ? list.items.filter(item => item.completed).length : 0;
+                const totalCount = list.items ? list.items.length : 0;
+                const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                
+                const listElement = document.createElement('div');
+                listElement.className = 'list-item';
+                listElement.innerHTML = `
+                    <div class="list-icon">${list.icon || '💑'}</div>
+                    <div class="list-content">
+                        <h3>${list.name}</h3>
+                        <div class="list-meta">
+                            <span><i class="far fa-calendar"></i> ${formatDate(list.createdAt)}</span>
+                            ${list.createdBy ? `<span><i class="fas fa-user"></i> ${list.createdBy}</span>` : ''}
+                        </div>
+                        <div class="list-stats">
+                            <span><i class="fas fa-check-circle"></i> ${completedCount}/${totalCount}</span>
+                            <span><i class="fas fa-chart-line"></i> ${progress}%</span>
+                            <span><i class="far fa-clock"></i> ${list.items ? list.items.length : 0} items</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right arrow-icon"></i>
+                `;
+                
+                listElement.addEventListener('click', function() {
+                    localStorage.setItem('currentListId', list.id);
+                    window.location.href = 'list.html';
+                });
+                
+                listsContainer.appendChild(listElement);
+            }
+
+            // Fungsi untuk tambah list baru
+            async function addNewList() {
                 const listName = newListInput.value.trim();
                 if (!listName) {
                     showToast('Nama listnya ngga boleh kosong yaa sayanggg');
+                    newListInput.focus();
                     return;
                 }
                 
-                const newList = {
-                    id: Date.now().toString(),
-                    name: listName,
-                    items: [],
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    icon: listIcons[Math.floor(Math.random() * listIcons.length)]
-                };
+                try {
+                    // Disable button saat proses
+                    addListBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+                    addListBtn.disabled = true;
+                    
+                    // Simpan ke Firebase
+                    await db.collection('lists').add({
+                        name: listName,
+                        sharedUserId: SHARED_USER_ID,
+                        icon: listIcons[Math.floor(Math.random() * listIcons.length)],
+                        items: [],
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdBy: getCurrentUserInitial() // Menandai siapa yang buat
+                    });
+                    
+                    // Reset input
+                    newListInput.value = '';
+                    showToast(`Yeayyy kerenn! List "${listName}" berhasil kamu buat nih🥹`);
+                    newListInput.focus();
+                    
+                } catch (error) {
+                    console.error("Error adding list:", error);
+                    showToast('Gagal membuat list. Coba lagi.');
+                } finally {
+                    // Enable button kembali
+                    addListBtn.innerHTML = '<i class="fas fa-plus"></i> Tambah List';
+                    addListBtn.disabled = false;
+                }
+            }
+
+            // Fungsi untuk update last active time
+            async function updateLastActive() {
+                try {
+                    await db.collection('sharedUsers').doc(SHARED_USER_ID).update({
+                        lastActive: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (error) {
+                    // Ignore error
+                }
+            }
+
+            // Fungsi untuk mendapatkan inisial user
+            function getCurrentUserInitial() {
+                // Bisa disesuaikan, misal berdasarkan device atau waktu
+                const hour = new Date().getHours();
+                const deviceId = localStorage.getItem('deviceId') || generateDeviceId();
+                localStorage.setItem('deviceId', deviceId);
                 
-                lists.push(newList);
-                saveData();
-                renderLists();
-                newListInput.value = '';
-                showToast(`Yeayyy kerenn! List "${listName}" berhasil kamu buat nih🥹`);
-                newListInput.focus();
+                return hour < 12 ? `💙 (${deviceId.substring(0, 3)})` : `💗 (${deviceId.substring(0, 3)})`;
             }
-            
-            // Simpan data
-            function saveData() {
-                localStorage.setItem('dateListApp', JSON.stringify({ lists }));
+
+            // Generate simple device ID
+            function generateDeviceId() {
+                return 'dev_' + Math.random().toString(36).substr(2, 9);
             }
-            
+
+            // Format tanggal
+            function formatDate(timestamp) {
+                if (!timestamp) return 'Baru saja';
+                
+                const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+                
+                if (diffMins < 1) return 'Baru saja';
+                if (diffMins < 60) return `${diffMins} menit lalu`;
+                if (diffHours < 24) return `${diffHours} jam lalu`;
+                if (diffDays < 7) return `${diffDays} hari lalu`;
+                
+                return date.toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'short'
+                });
+            }
+
             // Logout
             logoutBtn.addEventListener('click', function() {
                 if (confirm('Yakin kamu mau keluar dari website ini sayanggg?')) {
-                    localStorage.removeItem('dateListLoggedIn');
+                    if (listsUnsubscribe) {
+                        listsUnsubscribe();
+                    }
+                    localStorage.removeItem('isLoggedIn');
                     showToast('Sampai jumpa lagii sayangg, babayyyy!');
                     setTimeout(() => {
                         window.location.href = 'index.html';
                     }, 1000);
                 }
             });
-            
-            // Add list event
+
+            // Event Listeners
             addListBtn.addEventListener('click', addNewList);
             newListInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') addNewList();
             });
-            
-            // Filter event
+
+            // Filter (client-side)
             filterBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
                     filterBtns.forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
-                    renderLists(this.dataset.filter);
+                    // Untuk sekarang filter semua dulu
+                    // Bisa ditambahkan filter logic nanti
                 });
             });
-            
+
             // Toast function
             function showToast(message) {
                 const toast = document.getElementById('toast');
@@ -222,9 +326,19 @@
                     toast.classList.remove('show');
                 }, 3000);
             }
+
+            // Cleanup
+            window.addEventListener('beforeunload', function() {
+                if (listsUnsubscribe) {
+                    listsUnsubscribe();
+                }
+            });
+
+            // Auto-focus pada input
+            newListInput.focus();
             
-            // Render initial lists
-            renderLists();
+            // Load lists pertama kali
+            loadLists();
         });
     </script>
 </body>
