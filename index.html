@@ -8,6 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💑</text></svg>">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="login-page">
     <div class="login-container">
@@ -25,7 +29,7 @@
                     <label for="password-input">Kata Sandi</label>
                     <div class="input-with-icon">
                         <i class="fas fa-lock"></i>
-                        <input type="password" id="password-input" placeholder="Masukkan kata sandi">
+                        <input type="password" id="password-input" placeholder="Masukkan kata sandi" autocomplete="off">
                     </div>
                 </div>
                 
@@ -56,34 +60,72 @@
     <!-- Toast Notifikasi -->
     <div id="toast" class="toast"></div>
 
-    <script src="script.js"></script>
     <script>
+        // Firebase Configuration - GANTI DENGAN CONFIG ANDA
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0i9FPn0-IHgG7kAnvTX6YIN356Q5ZUrM",
+            authDomain: "with-you-app-8058a.firebaseapp.com",
+            projectId: "with-you-app-8058a",
+            storageBucket: "with-you-app-8058a.firebasestorage.app",
+            messagingSenderId: "501566707158",
+            appId: "1:501566707158:web:24f31d920555282bd5c077"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Password yang sudah ditentukan
+        const APP_PASSWORD = "sayangkamu";
+        // Shared user ID untuk kita berdua
+        const SHARED_USER_ID = "couple_together";
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Cek apakah sudah login
-            if (localStorage.getItem('dateListLoggedIn') === 'true') {
+            // Cek apakah sudah login sebelumnya
+            if (localStorage.getItem('isLoggedIn') === 'true') {
                 window.location.href = 'home.html';
             }
-            
-            // Setup event listener untuk login
+
+            // DOM Elements
             const loginBtn = document.getElementById('login-btn');
             const passwordInput = document.getElementById('password-input');
             const rememberMe = document.getElementById('remember-me');
-            
+
+            // Auto-focus pada password input
+            passwordInput.focus();
+
+            // Login function (sederhana tanpa Firebase Auth)
             loginBtn.addEventListener('click', function() {
                 const password = passwordInput.value.trim();
                 const remember = rememberMe.checked;
                 
-                if (password === 'sayangkamu') {
-                    localStorage.setItem('dateListLoggedIn', 'true');
-                    localStorage.setItem('dateListRemember', remember.toString());
-                    showToast('Welcome to our listt!!');
+                if (!password) {
+                    showToast('Masukkan kata sandi dulu sayang! 💕');
+                    passwordInput.focus();
+                    return;
+                }
+                
+                if (password === APP_PASSWORD) {
+                    // Login berhasil
+                    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Masuk...';
+                    loginBtn.disabled = true;
+                    
+                    // Simpan status login
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('sharedUserId', SHARED_USER_ID);
+                    localStorage.setItem('lastLogin', new Date().toISOString());
+                    
+                    // Buat atau update user data di Firebase
+                    initializeSharedUserData();
+                    
+                    showToast('Welcome to our listt!! 🎉');
                     
                     // Redirect ke home setelah 1 detik
                     setTimeout(() => {
                         window.location.href = 'home.html';
                     }, 1000);
                 } else {
-                    showToast('Kata sandi salah... coba kamu ingat-ingat lagi sayangg');
+                    showToast('Kata sandi salah... coba kamu ingat-ingat lagi sayangg 😘');
                     passwordInput.value = '';
                     passwordInput.focus();
                     
@@ -94,14 +136,41 @@
                     }, 10);
                 }
             });
-            
+
+            // Enter key untuk login
             passwordInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     loginBtn.click();
                 }
             });
-            
-            // Fungsi toast
+
+            // Fungsi untuk inisialisasi data user di Firebase
+            async function initializeSharedUserData() {
+                try {
+                    const userRef = db.collection('sharedUsers').doc(SHARED_USER_ID);
+                    const doc = await userRef.get();
+                    
+                    if (!doc.exists) {
+                        // Buat data user baru jika belum ada
+                        await userRef.set({
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+                            lists: [],
+                            activeUsers: 0
+                        });
+                    } else {
+                        // Update last active time
+                        await userRef.update({
+                            lastActive: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error initializing user data:", error);
+                    // Tetap lanjut meski ada error
+                }
+            }
+
+            // Toast function
             function showToast(message) {
                 const toast = document.getElementById('toast');
                 toast.textContent = message;
