@@ -24,6 +24,9 @@
                 </div>
             </div>
             <div class="header-right">
+                <button id="refresh-btn" class="btn-secondary" style="margin-right: 10px;">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
                 <button id="logout-btn" class="btn-logout">
                     <i class="fas fa-sign-out-alt"></i> Keluar
                 </button>
@@ -133,6 +136,7 @@
 
             // DOM Elements
             const logoutBtn = document.getElementById('logout-btn');
+            const refreshBtn = document.getElementById('refresh-btn');
             const addListBtn = document.getElementById('add-list-btn');
             const newListInput = document.getElementById('new-list-input');
             const listsContainer = document.getElementById('lists');
@@ -290,8 +294,8 @@
                         icon: listIcons[Math.floor(Math.random() * listIcons.length)],
                         items: [],
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        // createdBy: getCurrentUserInitial()
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        // createdBy: getCurrentUserInitial() // DIHAPUS
                     };
                     
                     debugText.textContent = 'Saving to Firebase...';
@@ -330,22 +334,6 @@
             }
 
             // ==================== HELPER FUNCTIONS ====================
-            // function getCurrentUserInitial() {
-            //     try {
-            //         const hour = new Date().getHours();
-            //         let deviceId = localStorage.getItem('deviceId');
-                    
-            //         if (!deviceId) {
-            //             deviceId = 'dev_' + Math.random().toString(36).substr(2, 6);
-            //             localStorage.setItem('deviceId', deviceId);
-            //         }
-                    
-            //         return hour < 12 ? `💙 (${deviceId.substring(0, 3)})` : `💗 (${deviceId.substring(0, 3)})`;
-            //     } catch (error) {
-            //         return '💑';
-            //     }
-            // }
-
             function formatDate(timestamp) {
                 if (!timestamp) return 'Baru saja';
                 try {
@@ -395,6 +383,17 @@
                 }
             });
 
+            refreshBtn.addEventListener('click', function() {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+                this.disabled = true;
+                
+                loadListsSimple().then(() => {
+                    this.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+                    this.disabled = false;
+                    showToast('Data diperbarui!');
+                });
+            });
+
             addListBtn.addEventListener('click', addNewList);
             newListInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') addNewList();
@@ -411,13 +410,22 @@
             // Test Firebase first
             testFirebase().then(success => {
                 if (success) {
-                    // Load lists
+                    // Load lists pertama kali
                     loadListsSimple();
                     
-                    // Set up auto-refresh every 10 seconds
+                    // Auto-refresh setiap 1 MENIT (lebih lambat dari 10 detik)
                     setInterval(() => {
                         loadListsSimple();
-                    }, 10000);
+                    }, 300000); // 60000 ms = 1 menit
+                    
+                    // Auto-refresh ketika tab/window aktif kembali
+                    document.addEventListener('visibilitychange', function() {
+                        if (!document.hidden) {
+                            // Refresh ketika user kembali ke tab
+                            loadListsSimple();
+                        }
+                    });
+                    
                 } else {
                     debugText.textContent = 'Firebase test failed';
                     showToast('Tidak bisa terhubung ke database');
