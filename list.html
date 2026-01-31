@@ -375,4 +375,75 @@
                 const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
                 
                 if (showTime) {
-                    const now = new
+                    const now = new Date();
+                    const diffMs = now - date;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    
+                    if (diffMins < 1) return 'Baru saja';
+                    if (diffMins < 60) return `${diffMins} menit lalu`;
+                    if (diffMins < 120) return '1 jam lalu';
+                    
+                    return date.toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+                
+                return date.toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
+
+            // Get user initial
+            function getCurrentUserInitial() {
+                const hour = new Date().getHours();
+                const deviceId = localStorage.getItem('deviceId') || 'dev_xxx';
+                return hour < 12 ? `💙 (${deviceId.substring(0, 3)})` : `💗 (${deviceId.substring(0, 3)})`;
+            }
+
+            // Update last active
+            async function updateLastActive() {
+                try {
+                    await db.collection('sharedUsers').doc('couple_together').update({
+                        lastActive: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (error) {
+                    // Ignore
+                }
+            }
+
+            // Event Listeners
+            addItemBtn.addEventListener('click', addNewItem);
+            newItemInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addNewItem();
+            });
+
+            // Toast function
+            function showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            // Cleanup
+            window.addEventListener('beforeunload', function() {
+                if (listUnsubscribe) {
+                    listUnsubscribe();
+                }
+            });
+
+            // Auto-focus
+            newItemInput.focus();
+            
+            // Load list data
+            loadList();
+        });
+    </script>
+</body>
+</html>
