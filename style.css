@@ -706,6 +706,10 @@ body {
     display: none;
 }
 
+.item-list:empty {
+    display: none;
+}
+
 .checklist-item {
     display: flex;
     align-items: center;
