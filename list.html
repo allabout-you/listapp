@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detail List</title>
+    <title>Detail List | with you</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -44,7 +44,6 @@
                             <i class="fas fa-plus"></i> Tambah Item
                         </button>
                     </div>
-                    <!-- <p class="hint-text">Item akan langsung terlihat oleh kita berdua 💕</p> -->
                 </div>
             </div>
 
@@ -124,8 +123,13 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+            showToast('Error koneksi database. Coba refresh halaman.');
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
             // Cek login
@@ -155,9 +159,11 @@
             const deleteListBtn = document.getElementById('delete-list-btn');
             const itemsContainer = document.getElementById('items');
             const itemsEmptyState = document.getElementById('items-empty-state');
+            const liveUpdateEl = document.querySelector('.live-update');
 
             // Real-time listener untuk list
             let listUnsubscribe = null;
+            let isConnected = true;
 
             // Load list data
             function loadList() {
@@ -177,11 +183,11 @@
                     
                     // Update UI
                     updateListUI(list);
+                    updateConnectionStatus(true);
                     
-                    // Update last active time
-                    updateLastActive();
                 }, (error) => {
                     console.error("Error loading list:", error);
+                    updateConnectionStatus(false);
                     showToast('Error memuat list. Coba refresh.');
                 });
             }
@@ -202,15 +208,11 @@
                 completedItemsEl.textContent = completedItems;
                 progressPercentEl.textContent = `${progressPercent}%`;
                 progressFill.style.width = `${progressPercent}%`;
-                completionRateEl.textContent = `${progressPercent}% Complete`;
+                completionRateEl.textContent = `${progressPercent}% Selesai`;
                 
                 // Update dates
-                if (list.createdAt) {
-                    createdDateEl.textContent = formatDate(list.createdAt);
-                }
-                if (list.updatedAt) {
-                    updatedDateEl.textContent = formatDate(list.updatedAt, true);
-                }
+                createdDateEl.textContent = formatDate(list.createdAt);
+                updatedDateEl.textContent = formatDate(list.updatedAt, true);
                 
                 // Render items
                 renderItems(items);
@@ -247,6 +249,11 @@
                         const itemText = itemElement.querySelector('.item-text');
                         
                         const toggleCompleted = async () => {
+                            if (!isConnected) {
+                                showToast('Tidak terhubung. Coba lagi.');
+                                return;
+                            }
+                            
                             const newItems = [...items];
                             const itemIndex = newItems.findIndex(it => (it.id || newItems.indexOf(it)) === (item.id || index));
                             
@@ -259,7 +266,7 @@
                                         items: newItems,
                                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                                     });
-                                    // UI akan update otomatis via real-time listener
+                                    showToast(newItems[itemIndex].completed ? 'Yeayyy! item ini udah selesaii! 🎉' : 'Yahh item ini belum selesai');
                                 } catch (error) {
                                     console.error("Error updating item:", error);
                                     showToast('Gagal update item. Coba lagi.');
@@ -299,12 +306,31 @@
                 }
             }
 
+            // Update connection status
+            function updateConnectionStatus(connected) {
+                isConnected = connected;
+                if (liveUpdateEl) {
+                    if (connected) {
+                        liveUpdateEl.innerHTML = '<i class="fas fa-broadcast-tower"></i> <span>Live update aktif</span>';
+                        liveUpdateEl.style.color = '#4CAF50';
+                    } else {
+                        liveUpdateEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>Tidak terhubung</span>';
+                        liveUpdateEl.style.color = '#FF9800';
+                    }
+                }
+            }
+
             // Tambah item baru
             async function addNewItem() {
                 const itemText = newItemInput.value.trim();
                 if (!itemText) {
                     showToast('Nama itemnya ngga boleh kosong yaa sayangg...');
                     newItemInput.focus();
+                    return;
+                }
+                
+                if (!isConnected) {
+                    showToast('Tidak terhubung ke server. Coba lagi.');
                     return;
                 }
                 
@@ -353,6 +379,11 @@
 
             // Hapus list
             deleteListBtn.addEventListener('click', async function() {
+                if (!isConnected) {
+                    showToast('Tidak terhubung. Coba lagi.');
+                    return;
+                }
+                
                 if (confirm('Yahhh Kamu yakin nih mau hapus list ini? nanti semua item di dalamnya bakal kehapus juga lohh...🙁')) {
                     try {
                         await db.collection('lists').doc(listId).delete();
@@ -368,49 +399,60 @@
                 }
             });
 
-            // Format tanggal
+            // Format tanggal yang lebih baik
             function formatDate(timestamp, showTime = false) {
                 if (!timestamp) return '-';
                 
-                const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-                
-                if (showTime) {
-                    const now = new Date();
-                    const diffMs = now - date;
-                    const diffMins = Math.floor(diffMs / 60000);
+                try {
+                    let date;
+                    if (timestamp && timestamp.toDate) {
+                        date = timestamp.toDate();
+                    } else if (timestamp instanceof Date) {
+                        date = timestamp;
+                    } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+                        date = new Date(timestamp);
+                    } else {
+                        return '-';
+                    }
                     
-                    if (diffMins < 1) return 'Baru saja';
-                    if (diffMins < 60) return `${diffMins} menit lalu`;
-                    if (diffMins < 120) return '1 jam lalu';
+                    // Validasi
+                    if (isNaN(date.getTime())) return '-';
                     
-                    return date.toLocaleTimeString('id-ID', {
-                        hour: '2-digit',
-                        minute: '2-digit'
+                    if (showTime) {
+                        const now = new Date();
+                        const diffMs = now - date;
+                        const diffMins = Math.floor(diffMs / 60000);
+                        
+                        if (diffMins < 1) return 'Baru saja';
+                        if (diffMins < 60) return `${diffMins} menit lalu`;
+                        if (diffMins < 120) return '1 jam lalu';
+                        
+                        return date.toLocaleTimeString('id-ID', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                    
+                    return date.toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
                     });
+                } catch (error) {
+                    console.error("Date formatting error:", error);
+                    return '-';
                 }
-                
-                return date.toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                });
             }
 
             // Get user initial
             function getCurrentUserInitial() {
-                const hour = new Date().getHours();
-                const deviceId = localStorage.getItem('deviceId') || 'dev_xxx';
-                return hour < 12 ? `💙 (${deviceId.substring(0, 3)})` : `💗 (${deviceId.substring(0, 3)})`;
-            }
-
-            // Update last active
-            async function updateLastActive() {
                 try {
-                    await db.collection('sharedUsers').doc('couple_together').update({
-                        lastActive: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    const hour = new Date().getHours();
+                    const deviceId = localStorage.getItem('deviceId') || 'dev_' + Math.random().toString(36).substr(2, 4);
+                    localStorage.setItem('deviceId', deviceId);
+                    return hour < 12 ? `💙 (${deviceId.substring(0, 3)})` : `💗 (${deviceId.substring(0, 3)})`;
                 } catch (error) {
-                    // Ignore
+                    return '💑';
                 }
             }
 
@@ -422,13 +464,17 @@
 
             // Toast function
             function showToast(message) {
-                const toast = document.getElementById('toast');
-                toast.textContent = message;
-                toast.classList.add('show');
-                
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 3000);
+                try {
+                    const toast = document.getElementById('toast');
+                    toast.textContent = message;
+                    toast.classList.add('show');
+                    
+                    setTimeout(() => {
+                        toast.classList.remove('show');
+                    }, 3000);
+                } catch (error) {
+                    console.error("Toast error:", error);
+                }
             }
 
             // Cleanup
@@ -439,7 +485,9 @@
             });
 
             // Auto-focus
-            newItemInput.focus();
+            setTimeout(() => {
+                newItemInput.focus();
+            }, 500);
             
             // Load list data
             loadList();
