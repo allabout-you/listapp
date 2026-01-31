@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Firebase</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <h1>Test Firebase Connection</h1>
+    <button onclick="testFirebase()">Test Firebase</button>
+    <button onclick="createTestList()">Create Test List</button>
+    <button onclick="getAllLists()">Get All Lists</button>
+    <div id="result" style="margin-top: 20px; padding: 10px; background: #f0f0f0;"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0i9FPn0-IHgG7kAnvTX6YIN356Q5ZUrM",
+            authDomain: "with-you-app-8058a.firebaseapp.com",
+            projectId: "with-you-app-8058a",
+            storageBucket: "with-you-app-8058a.firebasestorage.app",
+            messagingSenderId: "501566707158",
+            appId: "1:501566707158:web:24f31d920555282bd5c077"
+        };
+
+        let db;
+        
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            document.getElementById('result').innerHTML = '✅ Firebase initialized';
+        } catch (error) {
+            document.getElementById('result').innerHTML = '❌ Firebase error: ' + error.message;
+        }
+
+        async function testFirebase() {
+            try {
+                const test = await db.collection('test').doc('test').set({
+                    test: new Date().toISOString()
+                });
+                document.getElementById('result').innerHTML = '✅ Write test passed';
+            } catch (error) {
+                document.getElementById('result').innerHTML = '❌ Write error: ' + error.code + ' - ' + error.message;
+            }
+        }
+
+        async function createTestList() {
+            try {
+                const list = await db.collection('lists').add({
+                    name: 'Test List ' + new Date().toLocaleTimeString(),
+                    sharedUserId: 'couple_together',
+                    items: [],
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                document.getElementById('result').innerHTML = '✅ List created with ID: ' + list.id;
+            } catch (error) {
+                document.getElementById('result').innerHTML = '❌ Create error: ' + error.code + ' - ' + error.message;
+            }
+        }
+
+        async function getAllLists() {
+            try {
+                const snapshot = await db.collection('lists').get();
+                let html = '<h3>All Lists (' + snapshot.size + '):</h3>';
+                snapshot.forEach(doc => {
+                    html += `<div style="border:1px solid #ccc;margin:5px;padding:10px;">
+                        <strong>ID:</strong> ${doc.id}<br>
+                        <strong>Data:</strong> ${JSON.stringify(doc.data())}
+                    </div>`;
+                });
+                document.getElementById('result').innerHTML = html;
+            } catch (error) {
+                document.getElementById('result').innerHTML = '❌ Get error: ' + error.code + ' - ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
