@@ -72,16 +72,14 @@
                         <p class="empty-hint">Coba buat list kayak<br>"List Main 14 Februari" atau "List lainnya"</p>
                     </div>
                     
-                    <div id="loading-state" class="loading-state" style="display: none;">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>Memuat list...</span>
+                    <div id="loading-state" style="text-align: center; padding: 20px; color: var(--text-secondary); display: none;">
+                        <i class="fas fa-spinner fa-spin"></i> Memuat data...
                     </div>
                 </div>
             </div>
             
-            <div class="shared-notice">
-                <i class="fas fa-users"></i>
-                <p><strong>Live Sync Aktif</strong> - Perubahan yang kamu buat akan langsung terlihat oleh pasanganmu!</p>
+            <div class="debug-info" style="margin-top: 20px; padding: 10px; background: #f5f5f5; border-radius: 8px; font-size: 12px; color: #666; display: none;">
+                <strong>Debug Info:</strong> <span id="debug-text">-</span>
             </div>
         </div>
     </div>
@@ -90,7 +88,7 @@
     <div id="toast" class="toast"></div>
 
     <script>
-        // Firebase Configuration
+        // ==================== FIREBASE SETUP ====================
         const firebaseConfig = {
             apiKey: "AIzaSyC0i9FPn0-IHgG7kAnvTX6YIN356Q5ZUrM",
             authDomain: "with-you-app-8058a.firebaseapp.com",
@@ -99,29 +97,40 @@
             messagingSenderId: "501566707158",
             appId: "1:501566707158:web:24f31d920555282bd5c077"
         };
-    
-        // Initialize Firebase dengan error handling
-        let firebaseApp;
+
+        // Initialize Firebase
+        let app;
         let db;
         
         try {
-            firebaseApp = firebase.initializeApp(firebaseConfig);
+            app = firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
-            console.log("✅ Firebase initialized successfully");
+            console.log("✅ Firebase initialized");
         } catch (error) {
-            console.error("❌ Firebase initialization error:", error);
+            console.error("❌ Firebase error:", error);
         }
-    
-        // Shared user ID
+
         const SHARED_USER_ID = "couple_together";
-    
+
+        // ==================== APP LOGIC ====================
         document.addEventListener('DOMContentLoaded', function() {
+            // Debug elements
+            const debugInfo = document.querySelector('.debug-info');
+            const debugText = document.getElementById('debug-text');
+            
+            // Show debug info
+            debugInfo.style.display = 'block';
+            debugText.textContent = 'App loaded, checking login...';
+
             // Cek login
             if (localStorage.getItem('isLoggedIn') !== 'true') {
+                debugText.textContent = 'Not logged in, redirecting...';
                 window.location.href = 'index.html';
                 return;
             }
-    
+
+            debugText.textContent = 'Logged in, initializing...';
+
             // DOM Elements
             const logoutBtn = document.getElementById('logout-btn');
             const addListBtn = document.getElementById('add-list-btn');
@@ -129,171 +138,133 @@
             const listsContainer = document.getElementById('lists');
             const emptyState = document.getElementById('empty-state');
             const syncIndicator = document.getElementById('sync-indicator');
-    
-            // Cek Firebase connection
-            if (!db) {
-                console.error("❌ Firestore not initialized");
-                syncIndicator.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <span>Firebase Error</span>`;
-                syncIndicator.style.color = "#FF5252";
-                showToast('Firebase tidak terhubung. Coba refresh.');
-                return;
-            }
-    
+            const loadingState = document.getElementById('loading-state');
+
             // List icons
             const listIcons = ["💑", "❤️", "🎯", "✨", "🌟", "🎨", "🌸", "💎", "🎁", "🍿", "🎬", "✈️", "🌴", "🍽️", "🎵"];
             
-            // Real-time listener untuk lists
-            let listsUnsubscribe = null;
-    
-            // DEBUG: Test Firebase connection
-            testFirebaseConnection();
-    
-            // Fungsi test connection
-            async function testFirebaseConnection() {
+            // Store loaded lists
+            let loadedLists = [];
+
+            // ==================== TEST FIREBASE ====================
+            async function testFirebase() {
+                debugText.textContent = 'Testing Firebase connection...';
+                
+                if (!db) {
+                    debugText.textContent = 'Firestore not initialized';
+                    showToast('Firebase error: Database not initialized');
+                    return false;
+                }
+                
                 try {
-                    console.log("🔍 Testing Firebase connection...");
-                    syncIndicator.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>Testing connection...</span>`;
-                    
-                    // Test dengan query sederhana
-                    const testQuery = await db.collection('lists').limit(1).get();
-                    console.log("✅ Firebase connection test successful");
-                    console.log("📊 Test query result:", testQuery.empty ? "No documents" : "Has documents");
-                    
-                    // Jika sukses, load lists
-                    loadLists();
-                    
+                    // Test 1: Simple query
+                    const test = await db.collection('test').limit(1).get();
+                    debugText.textContent = 'Firebase test passed';
+                    return true;
                 } catch (error) {
-                    console.error("❌ Firebase connection test failed:", error);
-                    console.error("Error details:", error.code, error.message);
-                    syncIndicator.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Connection Failed</span>`;
-                    syncIndicator.style.color = "#FF5252";
-                    showToast(`Firebase error: ${error.code || error.message}`);
-                    
-                    // Coba lagi setelah 3 detik
-                    setTimeout(testFirebaseConnection, 3000);
+                    debugText.textContent = `Firebase error: ${error.code}`;
+                    showToast(`Firebase error: ${error.message}`);
+                    return false;
                 }
             }
-    
-            // Fungsi untuk load lists dari Firebase
-            function loadLists() {
-                console.log("📥 Loading lists from Firestore...");
-                
-                // Unsubscribe sebelumnya jika ada
-                if (listsUnsubscribe) {
-                    console.log("🔄 Unsubscribing previous listener");
-                    listsUnsubscribe();
-                }
-    
-                syncIndicator.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>Loading...</span>`;
-    
+
+            // ==================== LOAD LISTS (SIMPLE VERSION) ====================
+            async function loadListsSimple() {
+                debugText.textContent = 'Loading lists...';
+                loadingState.style.display = 'block';
+                listsContainer.innerHTML = '';
+                emptyState.style.display = 'none';
+                syncIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Loading...</span>';
+
                 try {
-                    // Subscribe ke real-time updates
-                    listsUnsubscribe = db.collection('lists')
+                    // Get all lists for our shared user
+                    const querySnapshot = await db.collection('lists')
                         .where('sharedUserId', '==', SHARED_USER_ID)
-                        .orderBy('createdAt', 'desc')
-                        .onSnapshot(
-                            // Success callback
-                            (snapshot) => {
-                                console.log("✅ Lists snapshot received:", snapshot.size, "documents");
-                                
-                                listsContainer.innerHTML = '';
-                                let hasLists = false;
-                                let listsCount = 0;
-                                
-                                snapshot.forEach((doc) => {
-                                    console.log("📄 Document:", doc.id, doc.data());
-                                    hasLists = true;
-                                    listsCount++;
-                                    const list = {
-                                        id: doc.id,
-                                        ...doc.data()
-                                    };
-                                    
-                                    renderList(list);
-                                });
-                                
-                                emptyState.style.display = hasLists ? 'none' : 'block';
-                                syncIndicator.innerHTML = `<i class="fas fa-check-circle"></i> <span>${listsCount} list • Live</span>`;
-                                syncIndicator.style.color = "#4CAF50";
-                                
-                                if (!hasLists) {
-                                    console.log("ℹ️ No lists found for sharedUserId:", SHARED_USER_ID);
-                                }
-                                
-                                // Update last active time
-                                updateLastActive();
-                            },
-                            // Error callback
-                            (error) => {
-                                console.error("❌ Error in lists listener:", error);
-                                console.error("Error code:", error.code);
-                                console.error("Error message:", error.message);
-                                
-                                syncIndicator.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Sync Error</span>`;
-                                syncIndicator.style.color = "#FF5252";
-                                
-                                let errorMessage = 'Gagal sinkron data. ';
-                                if (error.code === 'permission-denied') {
-                                    errorMessage += 'Permission denied. Cek Firestore Rules.';
-                                } else if (error.code === 'failed-precondition') {
-                                    errorMessage += 'Perlu index. Cek console Firebase.';
-                                } else {
-                                    errorMessage += error.message;
-                                }
-                                
-                                showToast(errorMessage);
-                                
-                                // Coba lagi setelah 5 detik
-                                setTimeout(loadLists, 5000);
-                            }
-                        );
+                        .get();
+                    
+                    debugText.textContent = `Found ${querySnapshot.size} lists`;
+                    
+                    if (querySnapshot.empty) {
+                        emptyState.style.display = 'block';
+                        syncIndicator.innerHTML = '<i class="fas fa-check-circle"></i> <span>0 list • Ready</span>';
+                        loadedLists = [];
+                    } else {
+                        loadedLists = [];
+                        querySnapshot.forEach((doc) => {
+                            loadedLists.push({
+                                id: doc.id,
+                                ...doc.data()
+                            });
+                        });
                         
-                    console.log("👂 List listener attached");
+                        renderAllLists();
+                        syncIndicator.innerHTML = `<i class="fas fa-check-circle"></i> <span>${loadedLists.length} list • Ready</span>`;
+                    }
                     
                 } catch (error) {
-                    console.error("❌ Error setting up listener:", error);
-                    syncIndicator.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <span>Setup Error</span>`;
-                    syncIndicator.style.color = "#FF9800";
-                    showToast('Error setup listener: ' + error.message);
+                    console.error("Error loading lists:", error);
+                    debugText.textContent = `Load error: ${error.code}`;
+                    syncIndicator.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>Load Error</span>';
+                    syncIndicator.style.color = "#FF5252";
+                    
+                    if (error.code === 'failed-precondition') {
+                        showToast('Perlu buat index di Firebase Console. Klik link error untuk buat otomatis.');
+                    } else {
+                        showToast(`Error: ${error.message}`);
+                    }
+                    
+                    // Fallback: Show empty state
+                    emptyState.style.display = 'block';
+                } finally {
+                    loadingState.style.display = 'none';
                 }
             }
-    
-            // Fungsi untuk render satu list
-            function renderList(list) {
-                console.log("🎨 Rendering list:", list.name);
+
+            // ==================== RENDER LISTS ====================
+            function renderAllLists() {
+                listsContainer.innerHTML = '';
                 
-                const completedCount = list.items ? list.items.filter(item => item.completed).length : 0;
-                const totalCount = list.items ? list.items.length : 0;
-                const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                if (loadedLists.length === 0) {
+                    emptyState.style.display = 'block';
+                    return;
+                }
                 
-                const listElement = document.createElement('div');
-                listElement.className = 'list-item';
-                listElement.innerHTML = `
-                    <div class="list-icon">${list.icon || '💑'}</div>
-                    <div class="list-content">
-                        <h3>${list.name}</h3>
-                        <div class="list-meta">
-                            <span><i class="far fa-calendar"></i> ${formatDate(list.createdAt)}</span>
-                            ${list.createdBy ? `<span><i class="fas fa-user"></i> ${list.createdBy}</span>` : ''}
+                loadedLists.forEach(list => {
+                    const completedCount = list.items ? list.items.filter(item => item.completed).length : 0;
+                    const totalCount = list.items ? list.items.length : 0;
+                    const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                    
+                    const listElement = document.createElement('div');
+                    listElement.className = 'list-item';
+                    listElement.innerHTML = `
+                        <div class="list-icon">${list.icon || '💑'}</div>
+                        <div class="list-content">
+                            <h3>${list.name}</h3>
+                            <div class="list-meta">
+                                <span><i class="far fa-calendar"></i> ${formatDate(list.createdAt)}</span>
+                                ${list.createdBy ? `<span><i class="fas fa-user"></i> ${list.createdBy}</span>` : ''}
+                            </div>
+                            <div class="list-stats">
+                                <span><i class="fas fa-check-circle"></i> ${completedCount}/${totalCount}</span>
+                                <span><i class="fas fa-chart-line"></i> ${progress}%</span>
+                                <span><i class="far fa-clock"></i> ${totalCount} items</span>
+                            </div>
                         </div>
-                        <div class="list-stats">
-                            <span><i class="fas fa-check-circle"></i> ${completedCount}/${totalCount}</span>
-                            <span><i class="fas fa-chart-line"></i> ${progress}%</span>
-                            <span><i class="far fa-clock"></i> ${totalCount} items</span>
-                        </div>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                `;
-                
-                listElement.addEventListener('click', function() {
-                    localStorage.setItem('currentListId', list.id);
-                    window.location.href = 'list.html';
+                        <i class="fas fa-chevron-right arrow-icon"></i>
+                    `;
+                    
+                    listElement.addEventListener('click', function() {
+                        localStorage.setItem('currentListId', list.id);
+                        window.location.href = 'list.html';
+                    });
+                    
+                    listsContainer.appendChild(listElement);
                 });
                 
-                listsContainer.appendChild(listElement);
+                emptyState.style.display = 'none';
             }
-    
-            // Fungsi untuk tambah list baru
+
+            // ==================== ADD NEW LIST ====================
             async function addNewList() {
                 const listName = newListInput.value.trim();
                 if (!listName) {
@@ -302,16 +273,18 @@
                     return;
                 }
                 
-                console.log("➕ Adding new list:", listName);
+                debugText.textContent = `Adding list: ${listName}`;
+                
+                // Save button state
+                const originalText = addListBtn.innerHTML;
+                const originalDisabled = addListBtn.disabled;
                 
                 try {
-                    // Disable button saat proses
-                    const originalText = addListBtn.innerHTML;
-                    const originalDisabled = addListBtn.disabled;
+                    // Disable button
                     addListBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
                     addListBtn.disabled = true;
                     
-                    // Data untuk list baru
+                    // Prepare data
                     const listData = {
                         name: listName,
                         sharedUserId: SHARED_USER_ID,
@@ -322,50 +295,42 @@
                         createdBy: getCurrentUserInitial()
                     };
                     
-                    console.log("📝 List data to save:", listData);
+                    debugText.textContent = 'Saving to Firebase...';
                     
-                    // Simpan ke Firebase
+                    // Save to Firebase
                     const docRef = await db.collection('lists').add(listData);
-                    console.log("✅ List saved with ID:", docRef.id);
                     
-                    // Reset input
+                    debugText.textContent = `Saved with ID: ${docRef.id}`;
+                    
+                    // Add to local array
+                    loadedLists.unshift({
+                        id: docRef.id,
+                        ...listData
+                    });
+                    
+                    // Update UI
+                    renderAllLists();
+                    
+                    // Clear input
                     newListInput.value = '';
                     showToast(`Yeayyy kerenn! List "${listName}" berhasil dibuat! 🥹`);
                     newListInput.focus();
                     
+                    // Update sync indicator
+                    syncIndicator.innerHTML = `<i class="fas fa-check-circle"></i> <span>${loadedLists.length} list • Updated</span>`;
+                    
                 } catch (error) {
-                    console.error("❌ Error adding list:", error);
-                    console.error("Error details:", error.code, error.message);
-                    
-                    let errorMsg = 'Gagal membuat list. ';
-                    if (error.code === 'permission-denied') {
-                        errorMsg += 'Permission denied. Cek Firestore Rules.';
-                    } else {
-                        errorMsg += error.message;
-                    }
-                    
-                    showToast(errorMsg);
+                    console.error("Error adding list:", error);
+                    debugText.textContent = `Save error: ${error.code}`;
+                    showToast(`Gagal menyimpan: ${error.message}`);
                     
                     // Restore button
-                    addListBtn.innerHTML = '<i class="fas fa-plus"></i> Tambah List';
-                    addListBtn.disabled = false;
+                    addListBtn.innerHTML = originalText;
+                    addListBtn.disabled = originalDisabled;
                 }
             }
-    
-            // Fungsi untuk update last active time
-            async function updateLastActive() {
-                if (!db) return;
-                
-                try {
-                    await db.collection('sharedUsers').doc(SHARED_USER_ID).update({
-                        lastActive: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                } catch (error) {
-                    console.error("Error updating lastActive:", error);
-                }
-            }
-    
-            // Fungsi untuk mendapatkan inisial user
+
+            // ==================== HELPER FUNCTIONS ====================
             function getCurrentUserInitial() {
                 try {
                     const hour = new Date().getHours();
@@ -381,11 +346,9 @@
                     return '💑';
                 }
             }
-    
-            // Format tanggal
+
             function formatDate(timestamp) {
                 if (!timestamp) return 'Baru saja';
-                
                 try {
                     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
                     if (isNaN(date.getTime())) return '-';
@@ -393,13 +356,10 @@
                     const now = new Date();
                     const diffMs = now - date;
                     const diffMins = Math.floor(diffMs / 60000);
-                    const diffHours = Math.floor(diffMs / 3600000);
-                    const diffDays = Math.floor(diffMs / 86400000);
                     
                     if (diffMins < 1) return 'Baru saja';
                     if (diffMins < 60) return `${diffMins} menit lalu`;
-                    if (diffHours < 24) return `${diffHours} jam lalu`;
-                    if (diffDays < 7) return `${diffDays} hari lalu`;
+                    if (diffMins < 1440) return `${Math.floor(diffMins/60)} jam lalu`;
                     
                     return date.toLocaleDateString('id-ID', {
                         day: 'numeric',
@@ -409,29 +369,7 @@
                     return '-';
                 }
             }
-    
-            // Logout
-            logoutBtn.addEventListener('click', function() {
-                if (confirm('Yakin kamu mau keluar dari website ini sayanggg?')) {
-                    if (listsUnsubscribe) {
-                        listsUnsubscribe();
-                    }
-                    localStorage.removeItem('isLoggedIn');
-                    localStorage.removeItem('currentListId');
-                    showToast('Sampai jumpa lagii sayangg, babayyyy!');
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 1000);
-                }
-            });
-    
-            // Event Listeners
-            addListBtn.addEventListener('click', addNewList);
-            newListInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') addNewList();
-            });
-    
-            // Toast function
+
             function showToast(message) {
                 try {
                     const toast = document.getElementById('toast');
@@ -445,19 +383,47 @@
                     console.error("Toast error:", error);
                 }
             }
-    
-            // Cleanup
-            window.addEventListener('beforeunload', function() {
-                if (listsUnsubscribe) {
-                    console.log("🧹 Cleaning up listener");
-                    listsUnsubscribe();
+
+            // ==================== EVENT LISTENERS ====================
+            logoutBtn.addEventListener('click', function() {
+                if (confirm('Yakin kamu mau keluar dari website ini sayanggg?')) {
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('currentListId');
+                    showToast('Sampai jumpa lagii sayangg, babayyyy!');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
                 }
             });
-    
-            // Auto-focus pada input
+
+            addListBtn.addEventListener('click', addNewList);
+            newListInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addNewList();
+            });
+
+            // Auto-focus
             setTimeout(() => {
                 newListInput.focus();
-            }, 1000);
+            }, 500);
+
+            // ==================== INITIALIZE ====================
+            debugText.textContent = 'Starting app...';
+            
+            // Test Firebase first
+            testFirebase().then(success => {
+                if (success) {
+                    // Load lists
+                    loadListsSimple();
+                    
+                    // Set up auto-refresh every 10 seconds
+                    setInterval(() => {
+                        loadListsSimple();
+                    }, 10000);
+                } else {
+                    debugText.textContent = 'Firebase test failed';
+                    showToast('Tidak bisa terhubung ke database');
+                }
+            });
         });
     </script>
 </body>
