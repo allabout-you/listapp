@@ -326,8 +326,9 @@
                     console.error("Error adding list:", error);
                     debugText.textContent = `Save error: ${error.code}`;
                     showToast(`Gagal menyimpan: ${error.message}`);
-                    
-                    // Restore button
+
+                } finally {
+                    // SELALU restore button state di finally block
                     addListBtn.innerHTML = originalText;
                     addListBtn.disabled = originalDisabled;
                 }
@@ -391,6 +392,9 @@
                     this.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
                     this.disabled = false;
                     showToast('Data diperbarui!');
+                }).finally(() => {
+                    this.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+                    this.disabled = false;
                 });
             });
 
