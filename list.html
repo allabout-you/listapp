@@ -121,7 +121,7 @@
             messagingSenderId: "501566707158",
             appId: "1:501566707158:web:24f31d920555282bd5c077"
         };
-    
+
         // Initialize Firebase
         let db;
         
@@ -132,36 +132,42 @@
         } catch (error) {
             console.error("❌ Firebase error:", error);
         }
-    
+
         document.addEventListener('DOMContentLoaded', function() {
             // Cek login
             if (localStorage.getItem('isLoggedIn') !== 'true') {
                 window.location.href = 'index.html';
                 return;
             }
-    
-            // Ambil list ID
+
+            // Ambil list ID dan tampilkan debug info
             const listId = localStorage.getItem('currentListId');
+            console.log("🔍 List ID dari localStorage:", listId);
+            
             if (!listId) {
-                window.location.href = 'home.html';
+                console.error("❌ List ID tidak ditemukan di localStorage");
+                showToast('List tidak ditemukan! Kembali ke home...');
+                setTimeout(() => window.location.href = 'home.html', 2000);
                 return;
             }
-    
-            console.log("List ID:", listId);
-    
+
             // DOM Elements
             const listTitle = document.getElementById('list-title');
             const totalItemsEl = document.getElementById('total-items');
             const completedItemsEl = document.getElementById('completed-items');
             const progressPercentEl = document.getElementById('progress-percent');
             const progressFill = document.getElementById('progress-fill');
+            const createdDateEl = document.getElementById('created-date');
+            const updatedDateEl = document.getElementById('updated-date');
+            const completionRateEl = document.getElementById('completion-rate');
             const newItemInput = document.getElementById('new-item-input');
             const addItemBtn = document.getElementById('add-item-btn');
             const deleteListBtn = document.getElementById('delete-list-btn');
             const itemsContainer = document.getElementById('items');
             const itemsEmptyState = document.getElementById('items-empty-state');
-    
-            // Load list data dengan cara sederhana
+            const liveUpdateEl = document.querySelector('.live-update');
+
+            // Load list data dengan real-time listener
             function loadList() {
                 if (!db) {
                     console.error("Database not initialized");
@@ -169,48 +175,58 @@
                     return;
                 }
                 
-                console.log("Loading list with ID:", listId);
+                console.log("🔄 Loading list with ID:", listId);
                 
                 const listRef = db.collection('lists').doc(listId);
                 
-                // Gunakan get() dulu untuk testing
-                listRef.get().then((doc) => {
+                // Gunakan onSnapshot untuk real-time updates
+                listRef.onSnapshot((doc) => {
                     if (!doc.exists) {
-                        console.error("List not found");
-                        showToast('List tidak ditemukan!');
+                        console.error("List not found in Firestore");
+                        showToast('List tidak ditemukan di database!');
                         setTimeout(() => window.location.href = 'home.html', 1500);
                         return;
                     }
                     
                     const list = doc.data();
-                    console.log("List data loaded:", list);
-                    
+                    console.log("✅ List data loaded:", list.name);
                     updateListUI(list);
+                    updateConnectionStatus(true);
                     
-                }).catch((error) => {
-                    console.error("Error loading list:", error);
+                }, (error) => {
+                    console.error("Error in real-time listener:", error);
+                    updateConnectionStatus(false);
                     showToast(`Error: ${error.message}`);
                 });
             }
-    
-            // Update UI
+
+            // Update UI dengan data list
             function updateListUI(list) {
+                // Set judul
                 listTitle.textContent = list.name || 'Untitled List';
                 
+                // Hitung stats
                 const items = list.items || [];
                 const totalItems = items.length;
                 const completedItems = items.filter(item => item.completed).length;
                 const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
                 
+                // Update stats
                 totalItemsEl.textContent = totalItems;
                 completedItemsEl.textContent = completedItems;
                 progressPercentEl.textContent = `${progressPercent}%`;
                 progressFill.style.width = `${progressPercent}%`;
+                completionRateEl.textContent = `${progressPercent}% Selesai`;
                 
+                // Update dates
+                createdDateEl.textContent = formatDate(list.createdAt);
+                updatedDateEl.textContent = formatDate(list.updatedAt, true);
+                
+                // Render items
                 renderItems(items);
             }
-    
-            // Render items sederhana
+
+            // Render items
             function renderItems(items) {
                 if (items.length === 0) {
                     itemsEmptyState.style.display = 'block';
@@ -226,6 +242,7 @@
                 items.forEach((item, index) => {
                     const itemElement = document.createElement('div');
                     itemElement.className = 'checklist-item';
+                    itemElement.dataset.index = index;
                     itemElement.innerHTML = `
                         <div class="checkbox ${item.completed ? 'checked' : ''}"></div>
                         <div class="item-text ${item.completed ? 'completed' : ''}">
@@ -240,84 +257,44 @@
                     const checkbox = itemElement.querySelector('.checkbox');
                     const itemText = itemElement.querySelector('.item-text');
                     
-                    checkbox.addEventListener('click', () => toggleItemCompleted(index));
-                    itemText.addEventListener('click', () => toggleItemCompleted(index));
+                    const toggleHandler = () => toggleItemCompleted(index);
+                    checkbox.addEventListener('click', toggleHandler);
+                    itemText.addEventListener('click', function(e) {
+                        if (!e.target.classList.contains('delete-item-btn')) {
+                            toggleHandler();
+                        }
+                    });
                     
                     // Delete button
                     const deleteBtn = itemElement.querySelector('.delete-item-btn');
-                    deleteBtn.addEventListener('click', (e) => {
+                    deleteBtn.addEventListener('click', async function(e) {
                         e.stopPropagation();
-                        deleteItem(index);
+                        await deleteItem(index);
                     });
                     
                     itemsContainer.appendChild(itemElement);
                 });
             }
-    
-            // Toggle item completed
-            async function toggleItemCompleted(index) {
-                try {
-                    const listRef = db.collection('lists').doc(listId);
-                    const listDoc = await listRef.get();
-                    
-                    if (!listDoc.exists) return;
-                    
-                    const list = listDoc.data();
-                    const items = list.items || [];
-                    
-                    if (index >= items.length) return;
-                    
-                    items[index].completed = !items[index].completed;
-                    
-                    await listRef.update({
-                        items: items,
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    
-                    showToast(items[index].completed ? 'Yeayy item selesai! 🎉' : 'Item belum selesai');
-                    
-                } catch (error) {
-                    console.error("Error toggling item:", error);
-                    showToast('Gagal update item');
+
+            // Update connection status
+            function updateConnectionStatus(connected) {
+                if (liveUpdateEl) {
+                    if (connected) {
+                        liveUpdateEl.innerHTML = '<i class="fas fa-broadcast-tower"></i> <span>Live update aktif</span>';
+                        liveUpdateEl.style.color = '#4CAF50';
+                    } else {
+                        liveUpdateEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>Tidak terhubung</span>';
+                        liveUpdateEl.style.color = '#FF9800';
+                    }
                 }
             }
-    
-            // Delete item
-            async function deleteItem(index) {
-                if (!confirm('Yakin hapus item ini?')) return;
-                
-                try {
-                    const listRef = db.collection('lists').doc(listId);
-                    const listDoc = await listRef.get();
-                    
-                    if (!listDoc.exists) return;
-                    
-                    const list = listDoc.data();
-                    const items = list.items || [];
-                    
-                    if (index >= items.length) return;
-                    
-                    items.splice(index, 1);
-                    
-                    await listRef.update({
-                        items: items,
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    
-                    showToast('Item berhasil dihapus!');
-                    
-                } catch (error) {
-                    console.error("Error deleting item:", error);
-                    showToast('Gagal menghapus item');
-                }
-            }
-    
-            // TAMBAH ITEM BARU - VERSI SEDERHANA
+
+            // ========== TAMBAH ITEM BARU (VERSI FIX) ==========
             async function addNewItem() {
                 const itemText = newItemInput.value.trim();
                 
                 if (!itemText) {
-                    showToast('Nama item tidak boleh kosong');
+                    showToast('Nama item tidak boleh kosong yaa sayangg...');
                     newItemInput.focus();
                     return;
                 }
@@ -327,9 +304,9 @@
                     return;
                 }
                 
-                console.log("Adding new item:", itemText);
+                console.log("➕ Adding new item:", itemText);
                 
-                // Simpan state tombol
+                // Save button state
                 const originalText = addItemBtn.innerHTML;
                 const originalDisabled = addItemBtn.disabled;
                 
@@ -338,7 +315,74 @@
                     addItemBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
                     addItemBtn.disabled = true;
                     
-                    // 1. Ambil list dulu
+                    const listRef = db.collection('lists').doc(listId);
+                    
+                    // 1. Get current document
+                    const listDoc = await listRef.get();
+                    
+                    if (!listDoc.exists) {
+                        showToast('List tidak ditemukan!');
+                        return;
+                    }
+                    
+                    const listData = listDoc.data();
+                    
+                    // 2. Ensure items array exists
+                    const currentItems = Array.isArray(listData.items) ? listData.items : [];
+                    console.log("📦 Current items:", currentItems);
+                    
+                    // 3. Create new item (simple version)
+                    const newItem = {
+                        text: itemText,
+                        completed: false,
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    // 4. Create updated array
+                    const updatedItems = [...currentItems, newItem];
+                    
+                    // 5. Update using set with merge (LEBIH AMAN)
+                    await listRef.set({
+                        items: updatedItems,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    
+                    console.log("✅ Item berhasil disimpan!");
+                    
+                    // 6. Clear input
+                    newItemInput.value = '';
+                    showToast('Yeayy! Item berhasil ditambahkan! 🎉');
+                    newItemInput.focus();
+                    
+                    // Real-time listener akan otomatis update UI
+                    
+                } catch (error) {
+                    console.error("❌ ERROR adding item:", {
+                        code: error.code,
+                        message: error.message,
+                        stack: error.stack
+                    });
+                    
+                    if (error.code === 'permission-denied') {
+                        showToast('Error: Izin ditolak. Cek Firebase Rules.');
+                    } else if (error.code === 'not-found') {
+                        showToast('Error: List tidak ditemukan.');
+                    } else if (error.code === 'invalid-argument') {
+                        showToast('Error: Format data tidak valid.');
+                    } else {
+                        showToast(`Error: ${error.message}`);
+                    }
+                    
+                } finally {
+                    // Always restore button
+                    addItemBtn.innerHTML = originalText;
+                    addItemBtn.disabled = originalDisabled;
+                }
+            }
+
+            // Toggle item completed
+            async function toggleItemCompleted(index) {
+                try {
                     const listRef = db.collection('lists').doc(listId);
                     const listDoc = await listRef.get();
                     
@@ -347,60 +391,72 @@
                         return;
                     }
                     
-                    const list = listDoc.data();
-                    const currentItems = list.items || [];
+                    const listData = listDoc.data();
+                    const items = listData.items || [];
                     
-                    console.log("Current items:", currentItems);
-                    
-                    // 2. Buat item baru
-                    const newItem = {
-                        text: itemText,
-                        completed: false,
-                        createdAt: new Date().toISOString()
-                        // No id, no createdBy
-                    };
-                    
-                    // 3. Update ke Firebase
-                    await listRef.update({
-                        items: [...currentItems, newItem],
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    
-                    console.log("Item added successfully!");
-                    
-                    // 4. Clear input
-                    newItemInput.value = '';
-                    showToast('Item berhasil ditambahkan! 💖');
-                    newItemInput.focus();
-                    
-                    // 5. Reload list untuk update UI
-                    loadList();
-                    
-                } catch (error) {
-                    console.error("❌ ERROR adding item:", error);
-                    console.error("Error code:", error.code);
-                    console.error("Error message:", error.message);
-                    console.error("Error stack:", error.stack);
-                    
-                    // Tampilkan error detail
-                    if (error.code === 'permission-denied') {
-                        showToast('ERROR: Permission denied. Cek Firebase Rules!');
-                    } else if (error.code === 'not-found') {
-                        showToast('ERROR: Document not found');
-                    } else {
-                        showToast(`ERROR: ${error.message}`);
+                    if (index >= items.length) {
+                        console.error("Index out of bounds:", index);
+                        return;
                     }
                     
-                } finally {
-                    // Restore button
-                    addItemBtn.innerHTML = originalText;
-                    addItemBtn.disabled = originalDisabled;
+                    // Toggle completion status
+                    items[index].completed = !items[index].completed;
+                    
+                    // Update with set merge
+                    await listRef.set({
+                        items: items,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    
+                    showToast(items[index].completed ? 'Yeayy! Item selesai! 🎉' : 'Item belum selesai');
+                    
+                } catch (error) {
+                    console.error("Error toggling item:", error);
+                    showToast('Gagal update item');
                 }
             }
-    
-            // Hapus list
+
+            // Delete item
+            async function deleteItem(index) {
+                if (!confirm('Yakin hapus item ini?')) return;
+                
+                try {
+                    const listRef = db.collection('lists').doc(listId);
+                    const listDoc = await listRef.get();
+                    
+                    if (!listDoc.exists) {
+                        showToast('List tidak ditemukan!');
+                        return;
+                    }
+                    
+                    const listData = listDoc.data();
+                    const items = listData.items || [];
+                    
+                    if (index >= items.length) {
+                        console.error("Index out of bounds:", index);
+                        return;
+                    }
+                    
+                    // Remove item at index
+                    items.splice(index, 1);
+                    
+                    // Update with set merge
+                    await listRef.set({
+                        items: items,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    
+                    showToast('Item berhasil dihapus!');
+                    
+                } catch (error) {
+                    console.error("Error deleting item:", error);
+                    showToast('Gagal menghapus item');
+                }
+            }
+
+            // Hapus seluruh list
             deleteListBtn.addEventListener('click', async function() {
-                if (!confirm('Yakin hapus list ini?')) return;
+                if (!confirm('Yakin hapus list ini? Semua item akan hilang.')) return;
                 
                 try {
                     await db.collection('lists').doc(listId).delete();
@@ -414,7 +470,51 @@
                     showToast('Gagal menghapus list');
                 }
             });
-    
+
+            // Format tanggal
+            function formatDate(timestamp, showTime = false) {
+                if (!timestamp) return '-';
+                
+                try {
+                    let date;
+                    if (timestamp && timestamp.toDate) {
+                        date = timestamp.toDate();
+                    } else if (timestamp instanceof Date) {
+                        date = timestamp;
+                    } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+                        date = new Date(timestamp);
+                    } else {
+                        return '-';
+                    }
+                    
+                    if (isNaN(date.getTime())) return '-';
+                    
+                    if (showTime) {
+                        const now = new Date();
+                        const diffMs = now - date;
+                        const diffMins = Math.floor(diffMs / 60000);
+                        
+                        if (diffMins < 1) return 'Baru saja';
+                        if (diffMins < 60) return `${diffMins} menit lalu`;
+                        if (diffMins < 120) return '1 jam lalu';
+                        
+                        return date.toLocaleTimeString('id-ID', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                    
+                    return date.toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                } catch (error) {
+                    console.error("Date formatting error:", error);
+                    return '-';
+                }
+            }
+
             // Toast function
             function showToast(message) {
                 try {
@@ -429,13 +529,13 @@
                     console.error("Toast error:", error);
                 }
             }
-    
+
             // Event listeners
             addItemBtn.addEventListener('click', addNewItem);
             newItemInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') addNewItem();
             });
-    
+
             // Auto-focus
             setTimeout(() => {
                 newItemInput.focus();
@@ -443,14 +543,6 @@
             
             // Load data
             loadList();
-            
-            // Coba test koneksi Firebase
-            console.log("Testing Firebase connection...");
-            if (db) {
-                db.collection('test').doc('test').get()
-                    .then(() => console.log("✅ Firebase connection OK"))
-                    .catch(err => console.log("❌ Firebase connection error:", err));
-            }
         });
     </script>
 </body>
